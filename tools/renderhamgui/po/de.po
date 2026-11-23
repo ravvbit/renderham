@@ -1,0 +1,899 @@
+# German translations for renderHAM package.
+# Copyright (c) 2026 rawbit (@ravvbit)
+# This file is distributed under the same license as the renderHAM package (MIT).
+# AI-generated (Claude, Anthropic) under human direction, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: renderHAM 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-22 12:21+0100\n"
+"PO-Revision-Date: 2026-08-02 06:23+0000\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: AboutDialog.cpp:8 MainFrame.cpp:306
+msgid "About"
+msgstr "Über"
+
+#: AboutDialog.cpp:11
+msgid "renderHAMgui"
+msgstr "renderHAMgui"
+
+#: AboutDialog.cpp:17
+#, c-format
+msgid "Version %s"
+msgstr "Version %s"
+
+#: AboutDialog.cpp:21
+msgid ""
+"Converts photos and other images into Amiga HAM6\n"
+"IFF/ILBM files - with palette control, dithering,\n"
+"cropping, and a Ken Burns-style animation preview\n"
+"and export."
+msgstr ""
+"Konvertiert Fotos und andere Bilder in Amiga-HAM6-\n"
+"IFF/ILBM-Dateien – mit Palettenkontrolle, Dithering,\n"
+"Zuschnitt sowie einer Ken-Burns-artigen Animations-\n"
+"vorschau und -export."
+
+#: AboutDialog.cpp:29
+msgid ""
+"AI-generated software: the code was written by Claude (Anthropic)\n"
+"under the direction of rawbit (@ravvbit)."
+msgstr ""
+"KI-generierte Software: Der Code wurde von Claude (Anthropic)\n"
+"unter der Leitung von rawbit (@ravvbit) geschrieben."
+
+#: AboutDialog.cpp:37
+msgid "Released under the MIT License."
+msgstr "Veröffentlicht unter der MIT-Lizenz."
+
+#: AboutDialog.cpp:40
+msgid "Keyboard shortcuts"
+msgstr "Tastenkürzel"
+
+#: AboutDialog.cpp:47
+msgid "Open an image"
+msgstr "Ein Bild öffnen"
+
+#: AboutDialog.cpp:48
+msgid "Save to the target directory"
+msgstr "Im Zielverzeichnis speichern"
+
+#: AboutDialog.cpp:49
+msgid "Save with a file picker"
+msgstr "Mit Dateiauswahl speichern"
+
+#: AboutDialog.cpp:50
+msgid "Convert / play preview"
+msgstr "Konvertieren / Vorschau abspielen"
+
+#: AboutDialog.cpp:51
+msgid "Cycle preview view (preview / HAM map / error map)"
+msgstr "Vorschau-Ansicht wechseln (Vorschau / HAM-Karte / Fehlerkarte)"
+
+#: AboutDialog.cpp:52
+msgid "Cancel the running conversion or export"
+msgstr "Laufende Konvertierung oder laufenden Export abbrechen"
+
+#: AboutDialog.cpp:53
+msgid "Rotate the source image left / right"
+msgstr "Quellbild nach links / rechts drehen"
+
+#: AboutDialog.cpp:54
+msgid "Mirror the source image horizontally / vertically"
+msgstr "Quellbild horizontal / vertikal spiegeln"
+
+#: AboutDialog.cpp:55
+msgid "Add keyframe"
+msgstr "Keyframe hinzufügen"
+
+#: AboutDialog.cpp:56 MainFrame.cpp:1002
+msgid "Quit"
+msgstr "Beenden"
+
+#: AboutDialog.cpp:57
+msgid "Zoom preview in/out"
+msgstr "Vorschau vergrößern/verkleinern"
+
+#: AboutDialog.cpp:58
+msgid "Zoom preview to fit / 100%"
+msgstr "Vorschau einpassen / 100%"
+
+#: MainFrame.cpp:126
+msgid "Zoom"
+msgstr "Zoom"
+
+#: MainFrame.cpp:137
+msgid "Show at 100% (one picture pixel per screen pixel)"
+msgstr "Mit 100 % anzeigen (ein Bildpixel pro Bildschirmpixel)"
+
+#: MainFrame.cpp:138
+msgid "Fit the whole picture into the window"
+msgstr "Das ganze Bild ins Fenster einpassen"
+
+#: MainFrame.cpp:139
+msgid "Zoom out"
+msgstr "Verkleinern"
+
+#: MainFrame.cpp:140
+msgid "Zoom in"
+msgstr "Vergrößern"
+
+#: MainFrame.cpp:165
+msgid "Open..."
+msgstr "Oeffnen..."
+
+#: MainFrame.cpp:166
+msgid "Open an image (Ctrl+O)"
+msgstr "Ein Bild öffnen (Strg+O)"
+
+#: MainFrame.cpp:167
+msgid "(no file loaded - or drag an image here)"
+msgstr "(keine Datei geladen - oder Bild hierher ziehen)"
+
+#: MainFrame.cpp:168
+msgid "Target directory..."
+msgstr "Zielverzeichnis..."
+
+#: MainFrame.cpp:169 MainFrame.cpp:568
+msgid "Save"
+msgstr "Speichern"
+
+#: MainFrame.cpp:170
+msgid "Save to the target directory (Ctrl+S)"
+msgstr "Im Zielverzeichnis speichern (Strg+S)"
+
+#: MainFrame.cpp:171 MainFrame.cpp:569
+msgid "Save As..."
+msgstr "Speichern unter..."
+
+#: MainFrame.cpp:172
+msgid "Save with a file picker (Ctrl+Shift+S)"
+msgstr "Mit Dateiauswahl speichern (Strg+Umschalt+S)"
+
+#: MainFrame.cpp:195
+msgid "Source"
+msgstr "Quelle"
+
+#: MainFrame.cpp:198
+msgid "Amiga Preview (HAM6)"
+msgstr "Amiga-Vorschau (HAM6)"
+
+#: MainFrame.cpp:214
+msgid "Simulate interlace (half height)"
+msgstr "Interlace simulieren (halbe Hoehe)"
+
+#: MainFrame.cpp:221 ParameterPanel.cpp:235
+msgid "Preview"
+msgstr "Vorschau"
+
+#: MainFrame.cpp:222
+msgid "HAM map"
+msgstr "HAM-Karte"
+
+#: MainFrame.cpp:223
+msgid "Error map"
+msgstr "Fehlerkarte"
+
+#: MainFrame.cpp:226
+msgid ""
+"What the preview shows: the decoded HAM6 result, a map of the HAM operation "
+"used for each pixel (black = Select, red/green/blue = Modify R/G/B), or an "
+"error map (brightness = distance from the source image, white = 0.10 OKLab "
+"or more). F6 cycles through the views. The error map is only available for "
+"the single-frame preview, not while an animation plays."
+msgstr ""
+"Was die Vorschau zeigt: das dekodierte HAM6-Ergebnis, eine Karte der pro "
+"Pixel verwendeten HAM-Operation (schwarz = Select, rot/grün/blau = Modify R/"
+"G/B) oder eine Fehlerkarte (Helligkeit = Abstand zum Quellbild, weiß = 0,10 "
+"OKLab oder mehr). F6 schaltet zwischen den Ansichten um. Die Fehlerkarte "
+"gibt es nur für die Einzelbild-Vorschau, nicht während eine Animation läuft."
+
+#: MainFrame.cpp:246
+msgid "Rotate the source 90 degrees to the left (Ctrl+L)"
+msgstr "Quellbild um 90 Grad nach links drehen (Strg+L)"
+
+#: MainFrame.cpp:247
+msgid "Rotate the source 90 degrees to the right (Ctrl+R)"
+msgstr "Quellbild um 90 Grad nach rechts drehen (Strg+R)"
+
+#: MainFrame.cpp:248
+msgid "Mirror the source left to right (Ctrl+Shift+H)"
+msgstr "Quellbild links/rechts spiegeln (Strg+Umschalt+H)"
+
+#: MainFrame.cpp:249
+msgid "Mirror the source top to bottom (Ctrl+Shift+V)"
+msgstr "Quellbild oben/unten spiegeln (Strg+Umschalt+V)"
+
+#: MainFrame.cpp:286
+msgid "Save current settings"
+msgstr "Aktuelle Einstellungen speichern"
+
+#: MainFrame.cpp:287
+msgid "Settings..."
+msgstr "Einstellungen..."
+
+#: MainFrame.cpp:293
+msgid ""
+"After a conversion: error = mean OKLab distance per pixel (lower is better); "
+"blurred = the same after blurring both pictures a little (sigma 1.5 px), the "
+"way eye and monitor mix neighboring pixels - this one rewards dithering; "
+"SSIM = structural similarity of the lightness, 1 = identical (it sees dither "
+"noise as foreign structure, so dithering lowers it). The three do not add up "
+"to one score: compare conversions by the figure that matters for your "
+"picture."
+msgstr ""
+"Nach einer Konvertierung: error = mittlerer OKLab-Abstand pro Pixel (kleiner "
+"ist besser); blurred = derselbe Abstand, nachdem beide Bilder leicht "
+"weichgezeichnet wurden (Sigma 1,5 px), so wie Auge und Monitor benachbarte "
+"Pixel mischen – dieser Wert belohnt Dithering; SSIM = strukturelle "
+"Ähnlichkeit der Helligkeit, 1 = identisch (Dither-Rauschen zählt dabei als "
+"fremde Struktur, Dithering senkt den Wert also). Die drei ergeben keine "
+"gemeinsame Note: Konvertierungen am besten nach dem Wert vergleichen, der "
+"für das jeweilige Bild zählt."
+
+#: MainFrame.cpp:301
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: MainFrame.cpp:302
+msgid "Stop the running conversion (Esc)"
+msgstr "Die laufende Konvertierung stoppen (Esc)"
+
+#: MainFrame.cpp:399
+msgid "Source rotated to the left"
+msgstr "Quellbild nach links gedreht"
+
+#: MainFrame.cpp:400
+msgid "Source rotated to the right"
+msgstr "Quellbild nach rechts gedreht"
+
+#: MainFrame.cpp:401
+msgid "Source mirrored left to right"
+msgstr "Quellbild links/rechts gespiegelt"
+
+#: MainFrame.cpp:402
+msgid "Source mirrored top to bottom"
+msgstr "Quellbild oben/unten gespiegelt"
+
+#: MainFrame.cpp:524 MainFrame.cpp:547
+#, c-format
+msgid "%s  (%dx%d)"
+msgstr "%s  (%dx%d)"
+
+#: MainFrame.cpp:538
+#, c-format
+msgid "Failed to load: %s"
+msgstr "Laden fehlgeschlagen: %s"
+
+#: MainFrame.cpp:538 MainFrame.cpp:754 MainFrame.cpp:758 MainFrame.cpp:770
+#: MainFrame.cpp:854 MainFrame.cpp:1148 MainFrame.cpp:1186
+#: ParameterPanel.cpp:683 ParameterPanel.cpp:713
+msgid "Error"
+msgstr "Fehler"
+
+#: MainFrame.cpp:554
+#, c-format
+msgid "Source: %dx%d"
+msgstr "Quelle: %dx%d"
+
+#: MainFrame.cpp:560
+msgid "Open Image"
+msgstr "Bild oeffnen"
+
+#: MainFrame.cpp:561
+msgid ""
+"Images (*.png;*.jpg;*.jpeg;*.bmp;*.tga)|*.png;*.jpg;*.jpeg;*.bmp;*.tga|All "
+"Files|*.*"
+msgstr ""
+"Bilder (*.png;*.jpg;*.jpeg;*.bmp;*.tga)|*.png;*.jpg;*.jpeg;*.bmp;*.tga|Alle "
+"Dateien|*.*"
+
+#: MainFrame.cpp:568
+msgid "Export Animation"
+msgstr "Animation exportieren"
+
+#: MainFrame.cpp:569
+msgid "Export Animation As..."
+msgstr "Animation exportieren als..."
+
+#: MainFrame.cpp:661 MainFrame.cpp:808
+msgid ""
+"Animation needs at least 2 keyframes - use \"Add keyframe\" in the Rendering "
+"box."
+msgstr ""
+"Die Animation benötigt mindestens 2 Keyframes – über \"Add keyframe\" im "
+"Bereich \"Rendering\" hinzufügen."
+
+#: MainFrame.cpp:662 MainFrame.cpp:809 MainFrame.cpp:931 MainFrame.cpp:959
+#: MainFrame.cpp:963 MainFrame.cpp:1078 MainFrame.cpp:1123
+msgid "Notice"
+msgstr "Hinweis"
+
+#: MainFrame.cpp:665
+msgid "Generating animation..."
+msgstr "Animation wird erzeugt..."
+
+#: MainFrame.cpp:710
+#, c-format
+msgid "Generating animation: frame %d/%d..."
+msgstr "Animation wird erzeugt: Frame %d/%d..."
+
+#: MainFrame.cpp:736
+msgid "Writing animation file..."
+msgstr "Animationsdatei wird geschrieben..."
+
+#: MainFrame.cpp:753
+#, c-format
+msgid "Failed to write animation file: %s"
+msgstr "Animationsdatei konnte nicht geschrieben werden: %s"
+
+#: MainFrame.cpp:756
+#, c-format
+msgid "Failed to write frame %d: %s"
+msgstr "Frame %d konnte nicht geschrieben werden: %s"
+
+#: MainFrame.cpp:760 MainFrame.cpp:771
+msgid "Export failed."
+msgstr "Export fehlgeschlagen."
+
+#: MainFrame.cpp:764
+msgid "Export cancelled."
+msgstr "Export abgebrochen."
+
+#: MainFrame.cpp:768 MainFrame.cpp:852
+#, c-format
+msgid "Animation frame %d failed: %s"
+msgstr "Animations-Frame %d fehlgeschlagen: %s"
+
+#: MainFrame.cpp:776
+#, c-format
+msgid "Animation exported: %d frames to %s.anim"
+msgstr "Animation exportiert: %d Frames nach %s.anim"
+
+#: MainFrame.cpp:778
+#, c-format
+msgid "Animation exported: %d frames to %s"
+msgstr "Animation exportiert: %d Frames nach %s"
+
+#: MainFrame.cpp:788 MainFrame.cpp:848 MainFrame.cpp:1144
+msgid "Cancelled."
+msgstr "Abgebrochen."
+
+#: MainFrame.cpp:812
+msgid "Building preview..."
+msgstr "Vorschau wird aufgebaut..."
+
+#: MainFrame.cpp:839
+#, c-format
+msgid "Building preview: frame %d/%d..."
+msgstr "Vorschau wird erstellt: Bild %d/%d..."
+
+#: MainFrame.cpp:855
+msgid "Preview failed."
+msgstr "Vorschau fehlgeschlagen."
+
+#: MainFrame.cpp:872
+msgid "Playing animation preview..."
+msgstr "Animationsvorschau läuft..."
+
+#: MainFrame.cpp:931 MainFrame.cpp:959 MainFrame.cpp:1123
+msgid "Please open an image first."
+msgstr "Bitte zuerst ein Bild oeffnen."
+
+#: MainFrame.cpp:934
+msgid "Save IFF As"
+msgstr "IFF speichern unter"
+
+#: MainFrame.cpp:934 ParameterPanel.cpp:676 ParameterPanel.cpp:693
+msgid "Amiga IFF ILBM (*.iff)|*.iff"
+msgstr "Amiga IFF ILBM (*.iff)|*.iff"
+
+#: MainFrame.cpp:947
+msgid "Select Target Directory"
+msgstr "Zielverzeichnis auswaehlen"
+
+#: MainFrame.cpp:954
+#, c-format
+msgid "Target directory set: %s"
+msgstr "Zielverzeichnis festgelegt: %s"
+
+#: MainFrame.cpp:963
+msgid "Please select a target directory first."
+msgstr "Bitte zuerst ein Zielverzeichnis auswaehlen."
+
+#: MainFrame.cpp:982
+msgid "No target directory selected yet."
+msgstr "Noch kein Zielverzeichnis ausgewaehlt."
+
+#: MainFrame.cpp:1002
+msgid "An export is still running. Cancel it and quit?"
+msgstr "Es läuft noch ein Export. Abbrechen und beenden?"
+
+#: MainFrame.cpp:1039
+msgid "Current settings saved as defaults."
+msgstr "Aktuelle Einstellungen als Standard gespeichert."
+
+#: MainFrame.cpp:1076
+msgid ""
+"Could not restart automatically. Please restart the application manually for "
+"the new language to take effect."
+msgstr ""
+"Automatischer Neustart nicht moeglich. Bitte die Anwendung manuell neu "
+"starten, damit die neue Sprache wirksam wird."
+
+#: MainFrame.cpp:1126
+msgid "Converting..."
+msgstr "Konvertiere..."
+
+#: MainFrame.cpp:1148
+#, c-format
+msgid "Conversion failed: %s"
+msgstr "Konvertierung fehlgeschlagen: %s"
+
+#: MainFrame.cpp:1150
+msgid "Conversion failed."
+msgstr "Konvertierung fehlgeschlagen."
+
+#: MainFrame.cpp:1157
+#, c-format
+msgid "%dx%d  error=%.4f  blurred=%.4f  SSIM=%.3f  LACE=%s"
+msgstr "%dx%d  Fehler=%.4f  weich=%.4f  SSIM=%.3f  LACE=%s"
+
+#: MainFrame.cpp:1160 MainFrame.cpp:1192
+msgid "on"
+msgstr "an"
+
+#: MainFrame.cpp:1160 MainFrame.cpp:1192
+msgid "off"
+msgstr "aus"
+
+#: MainFrame.cpp:1165
+msgid "Saving..."
+msgstr "Speichere..."
+
+#: MainFrame.cpp:1182
+msgid "Saving cancelled."
+msgstr "Speichern abgebrochen."
+
+#: MainFrame.cpp:1186
+#, c-format
+msgid "Failed to save: %s"
+msgstr "Speichern fehlgeschlagen: %s"
+
+#: MainFrame.cpp:1188
+msgid "Saving failed."
+msgstr "Speichern fehlgeschlagen."
+
+#: MainFrame.cpp:1191
+#, c-format
+msgid "Saved: %s (error=%.4f, LACE=%s)"
+msgstr "Gespeichert: %s (Fehler=%.4f, LACE=%s)"
+
+#: MainFrame.cpp:1200
+msgid "Export running - Esc cancels it."
+msgstr "Export läuft - Esc bricht ihn ab."
+
+#: MainFrame.cpp:1253
+msgid "Cancelling..."
+msgstr "Breche ab..."
+
+#: ParameterPanel.cpp:43
+msgid "352 x 280 (PAL, overscan)"
+msgstr "352 x 280 (PAL, Overscan)"
+
+#: ParameterPanel.cpp:45
+msgid "352 x 240 (NTSC, overscan)"
+msgstr "352 x 240 (NTSC, Overscan)"
+
+#: ParameterPanel.cpp:46
+msgid "320 x 512 (PAL, interlaced)"
+msgstr "320 x 512 (PAL, Interlace)"
+
+#: ParameterPanel.cpp:47
+msgid "352 x 560 (PAL, interlaced, overscan)"
+msgstr "352 x 560 (PAL, Interlace, Overscan)"
+
+#: ParameterPanel.cpp:48
+msgid "320 x 400 (NTSC, interlaced)"
+msgstr "320 x 400 (NTSC, Interlace)"
+
+#: ParameterPanel.cpp:49
+msgid "352 x 480 (NTSC, interlaced, overscan)"
+msgstr "352 x 480 (NTSC, Interlace, Overscan)"
+
+#: ParameterPanel.cpp:50
+msgid "Custom..."
+msgstr "Benutzerdefiniert..."
+
+#: ParameterPanel.cpp:68
+msgid "NTSC (8:5)"
+msgstr "NTSC (8:5)"
+
+#: ParameterPanel.cpp:69
+msgid "PAL (5:4)"
+msgstr "PAL (5:4)"
+
+#: ParameterPanel.cpp:106
+msgid "Crop (before scaling)"
+msgstr "Zuschnitt (vor dem Skalieren)"
+
+#: ParameterPanel.cpp:108
+msgid "Enable crop"
+msgstr "Zuschnitt aktivieren"
+
+#: ParameterPanel.cpp:115
+msgid "Width"
+msgstr "Breite"
+
+#: ParameterPanel.cpp:116
+msgid "Height"
+msgstr "Hoehe"
+
+#: ParameterPanel.cpp:134
+msgid "Pixels"
+msgstr "Pixel"
+
+#: ParameterPanel.cpp:136
+msgid "Percent"
+msgstr "Prozent"
+
+#: ParameterPanel.cpp:142
+msgid "Lock aspect ratio"
+msgstr "Seitenverhaeltnis sperren"
+
+#: ParameterPanel.cpp:172
+msgid "Rendering"
+msgstr "Rendering"
+
+#: ParameterPanel.cpp:174
+msgid "Enable animation"
+msgstr "Animation aktivieren"
+
+#: ParameterPanel.cpp:175
+msgid "Requires \"Enable crop\" above to also be checked"
+msgstr "Erfordert, dass \"Enable crop\" oben ebenfalls aktiviert ist"
+
+#: ParameterPanel.cpp:186
+msgid "Add keyframe: capture the current crop as a new keyframe (Ctrl+K)"
+msgstr ""
+"Keyframe hinzufügen: aktuellen Zuschnitt als neues Keyframe übernehmen "
+"(Strg+K)"
+
+#: ParameterPanel.cpp:190
+msgid "Remove the selected keyframe"
+msgstr "Das ausgewählte Keyframe entfernen"
+
+#: ParameterPanel.cpp:197
+msgid "Frames between keyframes"
+msgstr "Frames zwischen Keyframes"
+
+#: ParameterPanel.cpp:205
+msgid "Playback speed"
+msgstr "Wiedergabe-Tempo"
+
+#: ParameterPanel.cpp:208
+#, c-format
+msgid "%d fps"
+msgstr "%d fps"
+
+#: ParameterPanel.cpp:211
+msgid ""
+"How fast the animation plays: in the preview here, and in an exported Anim-"
+"File (stored as one frame every 60/fps jiffies of 1/60 s). Numbered single "
+"images have no speed. Only speeds that divide 60 are offered, since an ANIM "
+"counts in 1/60 s."
+msgstr ""
+"Wie schnell die Animation läuft: in der Vorschau hier und in einer "
+"exportierten Anim-Datei (gespeichert als ein Bild alle 60/fps Jiffies zu je "
+"1/60 s). Nummerierte Einzelbilder haben kein Tempo. Angeboten werden nur "
+"Geschwindigkeiten, die 60 teilen, weil eine ANIM in 1/60 s zählt."
+
+#: ParameterPanel.cpp:220
+msgid "Single images"
+msgstr "Einzelbilder"
+
+#: ParameterPanel.cpp:220
+msgid "Anim-File"
+msgstr "Anim-Datei"
+
+#: ParameterPanel.cpp:221
+msgid "Export format"
+msgstr "Exportformat"
+
+#: ParameterPanel.cpp:236 ParameterPanel.cpp:794
+msgid "Show HAM preview"
+msgstr "HAM-Vorschau anzeigen"
+
+#: ParameterPanel.cpp:242
+msgid "Loop: start again from the beginning when the preview reaches the end"
+msgstr "Wiederholen: am Ende der Vorschau wieder von vorn beginnen"
+
+#: ParameterPanel.cpp:246
+msgid "Back and forth: play forwards, then backwards, and so on"
+msgstr "Hin und her: vorwärts abspielen, dann rückwärts, und so weiter"
+
+#: ParameterPanel.cpp:270
+msgid "Target resolution and mode"
+msgstr "Zielaufloesung und Modus"
+
+#: ParameterPanel.cpp:283
+msgid "W:"
+msgstr "B:"
+
+#: ParameterPanel.cpp:285
+msgid "H:"
+msgstr "H:"
+
+#: ParameterPanel.cpp:289
+msgid "Fit (letterbox)"
+msgstr "Fit (Letterbox)"
+
+#: ParameterPanel.cpp:289
+msgid "Fill (crop)"
+msgstr "Fill (Crop)"
+
+#: ParameterPanel.cpp:289
+msgid "Stretch"
+msgstr "Stretch"
+
+#: ParameterPanel.cpp:290
+msgid "Scaling mode"
+msgstr "Skalierungsmodus"
+
+#: ParameterPanel.cpp:294
+msgid "Pixel aspect ratio"
+msgstr "Pixel-Seitenverhaeltnis"
+
+#: ParameterPanel.cpp:312
+msgid "HAM conversion settings"
+msgstr "HAM-Konvertierungseinstellungen"
+
+#: ParameterPanel.cpp:322
+msgid "Dithering"
+msgstr "Dithering"
+
+#: ParameterPanel.cpp:327 ParameterPanel.cpp:613 ParameterPanel.cpp:1123
+#, c-format
+msgid "Dither strength: %d%%"
+msgstr "Dither-Stärke: %d%%"
+
+#: ParameterPanel.cpp:342
+msgid "Palette quantizer"
+msgstr "Palette-Quantizer"
+
+#: ParameterPanel.cpp:343
+msgid "Color focus"
+msgstr "Farbfokus"
+
+#: ParameterPanel.cpp:366 ParameterPanel.cpp:604 ParameterPanel.cpp:1140
+#, c-format
+msgid "Refinement: %d passes"
+msgstr "Verfeinerung: %d Durchlaeufe"
+
+#: ParameterPanel.cpp:367
+msgid "Chroma <-> Luminance: 1.00"
+msgstr "Farbe <-> Helligkeit: 1.00"
+
+#: ParameterPanel.cpp:378
+msgid "Allow Modify at line start"
+msgstr "Modify am Zeilenanfang erlauben"
+
+#: ParameterPanel.cpp:380
+msgid ""
+"Lets a scanline start with a Modify of the border color (palette color 0), "
+"as the ILBM specification allows. Slightly better quality at the left edge, "
+"but decoders that start every line from black (e.g. netpbm's ilbmtoppm) show "
+"those pixels wrongly. No difference if color 0 is black."
+msgstr ""
+"Erlaubt, dass eine Bildzeile mit einem Modify der Randfarbe (Palettenfarbe "
+"0) beginnt, wie es die ILBM-Spezifikation vorsieht. Etwas bessere Qualität "
+"am linken Rand, aber Decoder, die jede Zeile mit Schwarz beginnen (z. B. "
+"ilbmtoppm von netpbm), zeigen diese Pixel falsch an. Kein Unterschied, wenn "
+"Farbe 0 schwarz ist."
+
+#: ParameterPanel.cpp:388
+msgid "Lookahead: off"
+msgstr "Lookahead: aus"
+
+#: ParameterPanel.cpp:389
+#, c-format
+msgid "Lookahead: %d pixels"
+msgstr "Lookahead: %d Pixel"
+
+#: ParameterPanel.cpp:392
+msgid ""
+"Looks several pixels ahead when choosing each HAM operation, so that a color "
+"change can start before an edge instead of after it. Less smearing at edges "
+"(error about 3 to 6 percent lower), but the conversion takes roughly 3 to 10 "
+"times longer; 3 pixels is a good compromise. Off by default, as it makes "
+"every preview slower. Animations take proportionally longer, too."
+msgstr ""
+"Schaut bei jeder HAM-Operation mehrere Pixel voraus, sodass ein Farbwechsel "
+"schon vor einer Kante beginnen kann statt danach. Weniger Verschmieren an "
+"Kanten (Fehler etwa 3 bis 6 Prozent geringer), aber die Konvertierung dauert "
+"grob 3- bis 10-mal länger; 3 Pixel sind ein guter Kompromiss. Standardmäßig "
+"aus, weil jede Vorschau dadurch langsamer wird. Auch Animationen dauern "
+"entsprechend länger."
+
+#: ParameterPanel.cpp:418
+msgid "Target color correction"
+msgstr "Ziel-Farbkorrektur"
+
+#: ParameterPanel.cpp:427
+msgid "Brightness: 0.00"
+msgstr "Helligkeit: 0.00"
+
+#: ParameterPanel.cpp:428
+msgid "Contrast: 1.00"
+msgstr "Kontrast: 1.00"
+
+#: ParameterPanel.cpp:437
+msgid "Gamma: 1.00"
+msgstr "Gamma: 1.00"
+
+#: ParameterPanel.cpp:438
+msgid "Saturation: 1.00"
+msgstr "Saettigung: 1.00"
+
+#: ParameterPanel.cpp:453
+msgid ""
+"Reset brightness, contrast, gamma and saturation to their neutral values"
+msgstr ""
+"Helligkeit, Kontrast, Gamma und Sättigung auf ihre neutralen Werte "
+"zurücksetzen"
+
+#: ParameterPanel.cpp:472
+msgid "Palette"
+msgstr "Palette"
+
+#: ParameterPanel.cpp:475
+msgid "Load palette..."
+msgstr "Palette laden..."
+
+#: ParameterPanel.cpp:476
+msgid "Save palette..."
+msgstr "Palette speichern..."
+
+#: ParameterPanel.cpp:483
+msgid "Lock current palette"
+msgstr "Aktuelle Palette sperren"
+
+#: ParameterPanel.cpp:497
+msgid "Current palette"
+msgstr "Aktuelle Palette"
+
+#: ParameterPanel.cpp:504
+#, c-format
+msgid "Color %d"
+msgstr "Farbe %d"
+
+#: ParameterPanel.cpp:511
+msgid "Lock color 0 (Amiga background)"
+msgstr "Farbe 0 sperren (Amiga-Hintergrund)"
+
+#: ParameterPanel.cpp:524
+msgid "Output"
+msgstr "Ausgabe"
+
+#: ParameterPanel.cpp:526
+msgid "ByteRun1 compression"
+msgstr "ByteRun1-Kompression"
+
+#: ParameterPanel.cpp:530
+msgid "Automatic"
+msgstr "Automatisch"
+
+#: ParameterPanel.cpp:530
+msgid "On"
+msgstr "Ein"
+
+#: ParameterPanel.cpp:530
+msgid "Off"
+msgstr "Aus"
+
+#: ParameterPanel.cpp:531
+msgid "Interlace flag"
+msgstr "Interlace-Flag"
+
+#: ParameterPanel.cpp:609 ParameterPanel.cpp:1145
+#, c-format
+msgid "Chroma <-> Luminance: %s"
+msgstr "Farbe <-> Helligkeit: %s"
+
+#: ParameterPanel.cpp:643 ParameterPanel.cpp:669 ParameterPanel.cpp:1149
+#, c-format
+msgid "Brightness: %s"
+msgstr "Helligkeit: %s"
+
+#: ParameterPanel.cpp:648 ParameterPanel.cpp:670 ParameterPanel.cpp:1153
+#, c-format
+msgid "Contrast: %s"
+msgstr "Kontrast: %s"
+
+#: ParameterPanel.cpp:653 ParameterPanel.cpp:671 ParameterPanel.cpp:1157
+#, c-format
+msgid "Gamma: %s"
+msgstr "Gamma: %s"
+
+#: ParameterPanel.cpp:658 ParameterPanel.cpp:672 ParameterPanel.cpp:1161
+#, c-format
+msgid "Saturation: %s"
+msgstr "Saettigung: %s"
+
+#: ParameterPanel.cpp:676
+msgid "Load Palette"
+msgstr "Palette laden"
+
+#: ParameterPanel.cpp:683
+#, c-format
+msgid "Failed to load palette: %s"
+msgstr "Palette konnte nicht geladen werden: %s"
+
+#: ParameterPanel.cpp:693
+msgid "Save Palette As"
+msgstr "Palette speichern unter"
+
+#: ParameterPanel.cpp:713
+#, c-format
+msgid "Failed to save palette: %s"
+msgstr "Palette konnte nicht gespeichert werden: %s"
+
+#: ParameterPanel.cpp:794
+msgid "Play preview"
+msgstr "Vorschau abspielen"
+
+#: ParameterPanel.cpp:795
+msgid "Play the animation preview (F5)"
+msgstr "Animationsvorschau abspielen (F5)"
+
+#: ParameterPanel.cpp:796
+msgid "Convert and show a single-frame preview (F5)"
+msgstr "Konvertieren und Einzelbild-Vorschau anzeigen (F5)"
+
+#: ParameterPanel.cpp:817
+msgid "Stop preview"
+msgstr "Vorschau stoppen"
+
+#: ParameterPanel.cpp:818
+msgid "Stop the animation preview (F5)"
+msgstr "Animationsvorschau stoppen (F5)"
+
+#: ParameterPanel.cpp:828 ParameterPanel.cpp:868
+#, c-format
+msgid "Keyframe %d"
+msgstr "Keyframe %d"
+
+#: SettingsDialog.cpp:11
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: SettingsDialog.cpp:18
+msgid "Language"
+msgstr "Sprache"
+
+#: SettingsDialog.cpp:32
+msgid "Changing the language restarts the application."
+msgstr "Ein Sprachwechsel startet die Anwendung neu."
+
+#: SettingsDialog.cpp:36
+msgid "Background for transparent images"
+msgstr "Hintergrund für transparente Bilder"
+
+#: SettingsDialog.cpp:39
+msgid ""
+"Transparent areas of the source image (e.g. PNG) are blended over this color."
+msgstr ""
+"Transparente Bereiche des Quellbilds (z. B. PNG) werden über diese Farbe "
+"gelegt."
+
+#: SettingsDialog.cpp:42
+msgid "Changing it reloads the current image."
+msgstr "Eine Änderung lädt das aktuelle Bild neu."

@@ -1,0 +1,12 @@
+build/
+testdata/out/
+testdata/__pycache__/
+*.o
+*.a
+dist/
+__pycache__/
+*.deb
+.vscode/
+.idea/
+*.swp
+compile_commands.json

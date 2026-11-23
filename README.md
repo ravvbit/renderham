@@ -1,0 +1,373 @@
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see this file.
+-->
+
+# renderHAM
+
+**Turn photos into Amiga HAM6 pictures** – as real IFF/ILBM files, and as Ken Burns-style IFF animations.
+
+> [!IMPORTANT]
+> **This is AI-generated software.** All code, tests, scripts, translations and documentation in
+> this repository were written by **Claude** (an AI model by Anthropic) in a long, interactive
+> dialogue with a human, **rawbit** ([@ravvbit](https://github.com/ravvbit)), who set the requirements, ran the program, judged the
+> results and decided what to keep. It is tested (see [Testing](#testing)), but it has had no
+> independent human code review and no security audit. Read [AI-generated software](#ai-generated-software)
+> before you rely on it.
+
+![A cat photo and a coffee cup photo, each shown as the original and as the HAM6 result](docs/images/example.png)
+
+*Two CC0 photos, converted with the default settings. Right: the HAM6 result at 320×256 pixels,
+enlarged 2× for viewing.*
+
+---
+
+## 1. What is renderHAM?
+
+### The short version
+
+renderHAM takes an ordinary image (PNG, JPEG, BMP, TGA, …) and converts it to a file that an
+Amiga computer can display natively: an **IFF ILBM picture in HAM6 mode**. If you give it
+several crop windows over one image, it can also generate a smooth pan-and-zoom animation
+(the "Ken Burns effect") as a series of pictures or as a single Amiga **IFF ANIM** file.
+
+It comes as three parts that share the same code:
+
+| Part | What it is |
+|---|---|
+| `renderHAM` | Command-line tool for single conversions and scripting |
+| `renderHAMgui` | Desktop application (wxWidgets) with live source/result views, cropping, animation and a German translation |
+| `renderhamlib` | The C++17 library underneath, usable from your own programs |
+
+### What is HAM6?
+
+A normal picture on the original Amiga chipset (OCS) is limited to a palette of at most 32 colors.
+**HAM** ("Hold And Modify") mode gets around that. In HAM6 every pixel stores 6 bits: 2 control
+bits and 4 data bits. Depending on the control bits a pixel either
+
+* **selects** one of the 16 palette colors, or
+* **modifies** the pixel to its left: it keeps that pixel's color but replaces exactly one of
+  its red, green or blue components with the 4-bit value.
+
+So the screen can show up to 4096 different colors although only 16 are in the palette – at the
+price of a characteristic look: colors can only change by one component per pixel, so sharp
+edges tend to smear or show colored fringes. Getting a *good* HAM picture is therefore an
+optimization problem: which palette, and which of the 64 possible codes for every single pixel.
+
+### How renderHAM solves it
+
+renderHAM does not quantize first and dither afterwards. For each pixel, scanning every line from
+left to right, it evaluates **all 64 reachable codes** (16 palette colors and 48 modifications of
+the pixel to the left) against the target color and picks the best one – with the dithering
+bias already applied to the target. Palette choice, dithering and HAM coding are one
+decision, and all color distances are measured in **OKLab**, a perceptually uniform color space.
+
+What you get:
+
+* standard IFF ILBM files (optionally ByteRun1-compressed) with the HAM flag set,
+* a PNG preview that shows exactly what the Amiga would display,
+* quality figures that tell you how close the result is to the picture the encoder was given.
+
+---
+
+## 2. Features
+
+### Conversion
+
+* **Palette quantizers** (`--quantizer`): `kmeans` (default), `median-cut`, `octree`.
+  The palette is then refined iteratively (`--palette-iterations`, default 4 passes).
+* **Color focus** (`--color-focus`): tell the palette optimizer which parts of the picture matter
+  most – `uniform` (default), `center`, `edge`, `center-edge`, `golden-ratio`.
+* **Chroma vs. luminance weight** (`--chroma-weight`): below 1 the encoder cares more about
+  getting brightness right than getting the color right.
+* **Dithering** (`--dither`, strength 0–100 %): error diffusion (`floyd-steinberg` (default),
+  `atkinson`, `sierra-lite`, `jarvis-judice-ninke`) or ordered patterns (`bayer`, `blue-noise`,
+  `checks`, `checks-lines`, `checks-lines-mixed`), or `none`.
+* **Lookahead** (`--lookahead n`, off by default): a beam search that looks `n` pixels ahead when
+  choosing a HAM operation. It starts a "modify" chain *before* an edge instead of after it,
+  which reduces smearing – at roughly 6× the encoding time.
+* **Palette control**: lock the current palette, load or save it as a standalone ILBM file,
+  force palette entry 0 (the border color on real hardware) to a fixed color.
+
+### Getting the picture into shape
+
+* **Crop** before scaling, in pixels or percent (`--crop WxH+X+Y`, or a rubber band in the GUI).
+* **Fit modes**: `fit` (letterbox), `fill` (crop to fill) or `stretch`; **pixel aspect** correction
+  for the non-square pixels of Amiga display modes.
+* **Rotate and mirror** the source; JPEG **EXIF orientation** is honored, and transparent areas of
+  PNGs are blended over a background color of your choice.
+* **Output-only color correction**: brightness, contrast, gamma, saturation.
+* **Resolutions**: any size from 1×1 to 8192×8192; presets for PAL and NTSC, with and without
+  overscan and interlace (for example 320×256 PAL, 352×280 PAL overscan, 320×200 NTSC,
+  320×512 PAL interlaced). The interlace flag is set automatically from 400 lines up.
+
+### Judging the result
+
+After each conversion renderHAM reports three figures, all measured in OKLab between the
+encoder's input picture and what HAM6 actually reproduces:
+
+* **error** – mean color distance per pixel (strict: it penalizes every dithered pixel),
+* **blurred** – the same after a Gaussian blur, closer to what eye and CRT make of neighboring
+  pixels; this is the fair figure for comparing dithering methods,
+* **SSIM** – structural similarity of the lightness (1 = identical); it notices lost edges and texture.
+
+`--ham-map` and `--error-map` (and the `F6` key in the GUI) show *which* HAM operation each
+pixel used and where the error is.
+
+### Animation (GUI)
+
+Tick **Enable animation**, give the crop box several **keyframes**, and renderHAM interpolates the
+crop linearly between them – a pan, a zoom, or both. You choose the number of frames between
+keyframes and the playback speed (frames per second). A **preview player** with loop and
+ping-pong plays the sequence before you export it as
+
+* numbered IFF pictures (`name_0001.iff`, `name_0002.iff`, …), or
+* a single **IFF ANIM** file (ANIM-5, delta-compressed – the common Amiga format).
+
+Frames are rendered in parallel, one worker thread per CPU core by default. With an ordered dither (`bayer`, `blue-noise`,
+…) the dither pattern is, by default, attached to the *picture* instead of the screen, so a pan
+does not make the pattern flicker (`--anchor-dither` gives the CLI the same behavior when you
+render pan frames with `--crop` from a script).
+
+### The GUI at a glance
+
+![The renderHAMgui main window with a converted photo](docs/images/gui.png)
+
+* Source image on the left, HAM6 result on the right, each with its own zoom (`Ctrl+=`, `Ctrl+-`,
+  `Ctrl+9` fit, `Ctrl+0` 100 %), always drawn with hard pixel edges.
+* Conversions run in the background with a progress display; `Esc` cancels.
+* Settings can be saved as your defaults. The interface is in English by default; a German
+  translation can be chosen in the Settings dialog or with `--lang de`.
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+O` | Open an image |
+| `Ctrl+S` / `Ctrl+Shift+S` | Save to the target directory / save with a file picker |
+| `F5` | Convert / play preview |
+| `F6` | Cycle the result view: preview → HAM map → error map |
+| `Esc` | Cancel the running conversion or export |
+| `Ctrl+L` / `Ctrl+R` | Rotate the source left / right |
+| `Ctrl+Shift+H` / `Ctrl+Shift+V` | Mirror the source horizontally / vertically |
+| `Ctrl+K` | Add keyframe |
+| `Ctrl+Q` | Quit |
+
+### The command line
+
+```bash
+renderHAM -i photo.jpg -o photo.iff
+renderHAM -i photo.jpg -o photo.iff --dither bayer --fit fill --preview preview.png
+renderHAM -i photo.jpg -o photo.iff --crop 50%x50%+25%+25% --width 352 --height 280 --lookahead 3
+renderHAM --list-dithers          # also: --list-quantizers, --list-color-focus
+renderHAM --help
+```
+
+A conversion prints a summary line, for example
+`wrote photo.iff (320x256, dither=floyd-steinberg, …, mean OKLab error=0.0173, blurred error=0.0013, SSIM=0.928)`.
+
+The most useful options (see `--help` for all of them):
+
+| Option | Meaning | Default |
+|---|---|---|
+| `-i`, `-o` | Source image, output IFF file | – |
+| `--width`, `--height` | Target resolution, 1–8192 | 320 × 256 |
+| `--fit` | `fit`, `fill` or `stretch` | `fit` |
+| `--crop WxH+X+Y` | Crop before scaling; values in pixels or `%` | off |
+| `--rotate`, `--flip-h`, `--flip-v` | Rotate clockwise by 0/90/180/270°, mirror | off |
+| `--dither`, `--dither-strength` | Ditherer and its strength in % | `floyd-steinberg`, 100 |
+| `--quantizer` | `kmeans`, `median-cut`, `octree` | `kmeans` |
+| `--palette-iterations` | Palette refinement passes (0 = none) | 4 |
+| `--color-focus`, `--chroma-weight` | Where and what the palette should favor | `uniform`, 1.0 |
+| `--lookahead n` | Look `n` pixels ahead (0–8) | off |
+| `--brightness`, `--contrast`, `--gamma`, `--saturation` | Output-only color correction | neutral |
+| `--load-palette`, `--save-palette`, `--fix-color0` | Palette control | – |
+| `--preview`, `--ham-map`, `--error-map` | Also write PNG previews/maps | – |
+| `--no-compress`, `--lace`, `--no-lace` | Output file options | RLE on, lace automatic |
+
+### Using the library
+
+```cpp
+#include <iostream>
+#include "aic/aic.hpp"
+
+int main() {
+    aic::ConversionPipeline pipeline;
+    aic::ConversionOptions opts;
+    opts.target_width = 320;
+    opts.target_height = 256;
+    opts.ditherer_name = "floyd-steinberg";
+
+    aic::ConversionResult r = pipeline.convert("photo.png", "photo.iff", opts);
+    if (!r.success) { std::cerr << r.error_message << "\n"; return 1; }
+    std::cout << "mean OKLab error " << r.mean_oklab_error << "\n";
+}
+```
+
+The C++ namespace and include prefix are `aic` for historical reasons. Ditherers, quantizers and
+color-focus maps register themselves at program start-up, so an executable must link the static
+library with every object file included; `cmake/AicWholeArchive.cmake` provides
+`aic_link_whole_archive(<target> renderhamlib)` for that. The library API is not stable yet (see
+[Versioning](#versioning)).
+
+### Good to know
+
+* Only classic full-picture **HAM6** is produced – no HAM8, Sliced HAM or Dynamic HiRes.
+* The files are standard IFF ILBM, but **no test on real Amiga hardware or in an Amiga emulator
+  is documented yet**. The output is verified with an independent decoder and with netpbm's
+  `ilbmtoppm` (see [Testing](#testing)).
+* There is no batch mode and no live preview on every slider move – you press *Convert* (`F5`).
+* The animation features are part of the GUI; the command line converts single pictures.
+
+---
+
+## 3. Building and installing
+
+### Requirements
+
+* A C++17 compiler (GCC, Clang) and **CMake 3.16 or newer**
+* For the GUI (optional): **wxWidgets 3.0 or newer** (developed and tested with 3.2.4)
+* For the German GUI translation (optional): GNU gettext (`msgfmt`)
+
+The command-line tool and the library need nothing else – the image loading, writing and
+scaling libraries (stb) are included in `third_party/`, and the build needs no network access.
+
+On Debian, Ubuntu and Linux Mint:
+
+```bash
+sudo apt install build-essential cmake libwxgtk3.2-dev gettext
+```
+
+(`libwxgtk3.0-gtk3-dev` on older releases.)
+
+### Build
+
+```bash
+git clone https://github.com/ravvbit/renderham.git
+cd renderham
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+This produces `build/tools/renderham/renderHAM`, `build/tools/renderhamgui/renderHAMgui` and
+`build/renderhamlib/librenderhamlib.a`. If wxWidgets is not found, the GUI is skipped and
+everything else is built; `-DAIC_BUILD_GUI=OFF` skips it on purpose. Without gettext the GUI
+is English only.
+
+Try it:
+
+```bash
+./build/tools/renderham/renderHAM -i testdata/test_input.png -o /tmp/test.iff --preview /tmp/test.png
+./build/tools/renderhamgui/renderHAMgui testdata/test_input.png
+```
+
+### Testing
+
+```bash
+cd build && ctest --output-on-failure
+```
+
+Seven test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
+animation sequences and timing, dither anchoring, and the quality figures (the latter against
+values computed independently with NumPy). Beyond ctest, the Python tools in `testdata/` check
+the output files: `verify_ilbm.py` parses an IFF file independently of the C++ code, and
+`decode_ham6_independent.py` is a from-scratch HAM6 decoder whose result is compared pixel by
+pixel with the tool's own preview. `scripts/ham_eval.py` compares settings objectively
+(it needs NumPy and Pillow).
+
+### Install
+
+```bash
+sudo cmake --install build --prefix /usr/local
+```
+
+installs the two programs (the GUI translation is placed next to the GUI executable, where it
+looks for it), the library and its headers.
+
+### Debian package
+
+```bash
+sudo apt install dpkg-dev                # help2man and lintian are used if present
+DEB_MAINTAINER="Your Name <you@example.org>" ./scripts/build_deb.sh
+sudo apt install ./dist/renderham_*.deb
+```
+
+The script builds the project, works out the run-time dependencies with `dpkg-shlibdeps`,
+generates man pages and writes the package to `dist/`. The package version is the one
+defined in `CMakeLists.txt`.
+
+### Other platforms
+
+Only Linux (GTK) has been built and tested. The code is portable C++17 and wxWidgets, and the
+build is prepared for a MinGW-w64 cross build for Windows (use the *posix* thread model compiler,
+for example `x86_64-w64-mingw32-g++-posix`, because the animation renderer uses `std::thread`),
+but no Windows or macOS binaries exist and those platforms are untested.
+
+### Translating the GUI
+
+`scripts/update_translations.sh` extracts the strings from the source and merges them into
+`tools/renderhamgui/po/*.po`. To add a language, add its `.po` file and its code to
+`AIC_GUI_LOCALES` in `tools/renderhamgui/CMakeLists.txt`.
+
+---
+
+## Project layout
+
+```
+renderhamlib/        the library: encoder, quantizers, ditherers, IFF writers, pipeline
+  include/aic/       public headers
+  src/               implementation
+tools/renderham/     command-line tool
+tools/renderhamgui/  wxWidgets GUI (with po/ translations)
+tests/               ctest programs
+testdata/            small synthetic test pictures and independent verification scripts
+scripts/             Debian packaging, icon generators, evaluation and translation helpers
+third_party/stb/     vendored single-file libraries
+cmake/               CMake helper for the self-registering components
+docs/                images for this README and a historical (German) development log
+```
+
+## Versioning
+
+renderHAM uses [Semantic Versioning](https://semver.org). The version is defined once, in the
+`project()` call of the top-level `CMakeLists.txt`, and flows from there into
+`renderHAM --version`, the GUI's About dialog and the Debian package. The library, the command
+line tool and the GUI share one version number. Releases are tagged `vMAJOR.MINOR.PATCH`;
+[`CHANGELOG.md`](CHANGELOG.md) lists what changed.
+
+The current series is **0.x**: the program is usable, but command-line options, the GUI's
+saved settings and the C++ API may still change between minor versions. Version 1.0.0 will
+mark the point where they settle.
+
+## AI-generated software
+
+This project was built by an AI model working with a human:
+
+* **Who wrote what.** Claude (Anthropic) wrote the code, the tests, the build scripts, the
+  documentation and the German translation. **rawbit** ([@ravvbit](https://github.com/ravvbit)) specified what the software should do,
+  ran it, looked at the results, reported problems and decided about every change.
+* **What that means for you.** Treat the code like any software you did not write yourself:
+  look before you trust. It is covered by automated tests and by independent verification of
+  its output files, but it has not been reviewed line by line by an independent human, and it
+  has not been audited for security. Be careful with untrusted input files.
+* **Where it is marked.** This README, a header in every source file of its own, `renderHAM --version`,
+  the GUI's About dialog, the Debian package description and the commit messages
+  (`Co-Authored-By: Claude`) all say so.
+* **Copyright.** In many jurisdictions purely machine-generated material is not protected by
+  copyright, while a human's creative direction, selection and editing can be. The license below
+  applies to every right that exists in this work; the copyright notice names the human who
+  directed it. This is not legal advice.
+
+## License
+
+renderHAM is released under the **[MIT License](LICENSE)** – use it, change it, ship it,
+including in commercial and closed-source products, as long as the copyright and license notice
+stay with it. There is no warranty.
+
+Third-party components and their licenses are listed in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). In short: the bundled stb libraries are
+MIT/public domain, and wxWidgets (used only by the GUI, installed separately) is under the
+wxWindows Library Licence, which explicitly allows programs under other licenses to link it.
+The two example photos in `docs/images/example.png` are CC0 / public-domain sample images
+from scikit-image (cat photo by Stefan van der Walt, coffee photo by Rachel Michetti, both CC0).
+
+"Amiga", "Deluxe Paint" and other product names are trademarks of their respective owners.
+renderHAM is an independent project and is not affiliated with or endorsed by them.
