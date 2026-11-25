@@ -145,6 +145,13 @@ jobs:
       # Has flatpak-builder and the GNOME runtime tooling; the tag matches runtime-version in the manifest.
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
+      volumes:
+        # The image carries the GNOME runtime in /var/lib/flatpak. Whenever the runtime has had an update
+        # since the image was built, flatpak updates it by renaming directories of the image's layer, and
+        # overlayfs refuses that with "Invalid cross-device link" ("Failed to update org.gnome.Sdk"): a
+        # build that failed now and then, depending on the day. An anonymous volume starts with the
+        # image's content at that path but is a plain directory, where renaming works.
+        - /var/lib/flatpak
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
