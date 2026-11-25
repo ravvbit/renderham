@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
+[Desktop Entry]
+Type=Application
+Name=renderHAM
+GenericName=Amiga HAM6 image converter
+Comment=Convert photos into Amiga HAM6 images and animations
+Exec=renderHAMgui %f
+Icon=io.github.ravvbit.renderham
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+Keywords=Amiga;HAM;HAM6;ILBM;IFF;image;converter;retro;
+MimeType=image/png;image/jpeg;image/bmp;image/x-tga;
+StartupWMClass=renderHAMgui

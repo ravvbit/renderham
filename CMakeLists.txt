@@ -30,6 +30,11 @@ if (AIC_BUILD_GUI)
     endif()
 endif()
 
+# The license texts travel with every installed copy, which also puts them into the AppImage and
+# the Flatpak (share/doc/renderham/).
+include(GNUInstallDirs)
+install(FILES LICENSE THIRD_PARTY_NOTICES.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
 enable_testing()
 if (EXISTS ${CMAKE_SOURCE_DIR}/tests/CMakeLists.txt)
     add_subdirectory(tests)

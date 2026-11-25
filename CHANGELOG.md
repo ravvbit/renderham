@@ -9,6 +9,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org) (see the README).
 
+## [Unreleased]
+
+### Added
+
+- **Linux packages**: a GitHub Actions workflow (`.github/workflows/linux-packages.yml`) builds, tests
+  and packages renderHAM for x86_64 Linux as a Debian package, an AppImage and a Flatpak, and drafts a
+  GitHub release with checksums when a version tag is pushed.
+- `scripts/build_appimage.sh` (AppImage of the GUI) and `packaging/linux/flatpak/` (Flatpak manifest:
+  wxWidgets 3.2.12 built from source on the GNOME 50 runtime).
+- Desktop integration on Linux: menu entry, AppStream metadata and a placeholder icon in
+  `packaging/linux/`, installed by `cmake --install`; the license texts are installed to
+  `share/doc/renderham/`.
+
+### Changed
+
+- README and `THIRD_PARTY_NOTICES.md` state the origin and license of the example photos (also the
+  cat photo in the GUI screenshot) and which third-party libraries the AppImage and the Flatpak contain.
+- The README's project layout no longer mentions the removed development log.
+
 ## [0.1.0] - 2026-11-22
 
 First public release.
@@ -35,4 +54,5 @@ First public release.
   output files.
 - MIT License, third-party notices, and a statement that the software is AI-generated.
 
+[Unreleased]: https://github.com/ravvbit/renderham/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/ravvbit/renderham/releases/tag/v0.1.0

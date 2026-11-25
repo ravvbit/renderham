@@ -212,8 +212,7 @@ mkdir -p "$DOC_DIR"
     sed -e '/^MIT License$/,/^$/d' -e '/^Copyright (c)/,/^$/d' \
         -e 's/^/ /' -e 's/^ $/ ./' "$PROJECT_ROOT/LICENSE"
 } > "$DOC_DIR/copyright"
-cp "$PROJECT_ROOT/LICENSE" "$DOC_DIR/LICENSE"
-cp "$PROJECT_ROOT/THIRD_PARTY_NOTICES.md" "$DOC_DIR/THIRD_PARTY_NOTICES.md"
+# LICENSE and THIRD_PARTY_NOTICES.md are already in $DOC_DIR: cmake --install puts them there.
 gzip -9 -n -c "$PROJECT_ROOT/README.md" > "$DOC_DIR/README.md.gz"
 
 # A "native" Debian package (no separate upstream/Debian revision) -
