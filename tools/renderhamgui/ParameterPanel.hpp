@@ -35,6 +35,9 @@ public:
     // frame uses it to cap the panel on small screens, where the panel then
     // scrolls instead of pushing the window off the screen.
     int NaturalHeight() const;
+    // Width it needs for the same (the two columns share the width equally, so this follows the
+    // wider of them: it differs with the language and the theme's fonts).
+    int NaturalWidth() const;
 
     // Builds a full ConversionOptions from the current control states.
     aic::ConversionOptions GetOptions() const;

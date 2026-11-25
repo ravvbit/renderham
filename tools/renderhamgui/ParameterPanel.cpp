@@ -27,6 +27,13 @@ wxArrayString RegistryNames(const std::vector<std::string>& names) {
 
 wxString FormatFloat(float v) { return wxString::Format("%.2f", v); }
 
+// Space around each row inside a group box, and between the group boxes. The window's height is
+// the height of the two columns of group boxes plus the two preview panes, and on a 1080p screen
+// every row of the columns is paid for by the preview panes, so the gaps are small.
+constexpr int kPad = 2;
+constexpr int kBoxGap = 6;
+constexpr int kSwatchSize = 22;  // a palette swatch: 16 of them have to fit one row of the column
+
 // The name of a quality profile as shown in the choice. The library's names are English only; each
 // is spelled out here so the translation tooling sees it.
 wxString QualityProfileLabel(aic::QualityProfile id) {
@@ -155,41 +162,40 @@ int ParameterPanel::NaturalHeight() const {
     return GetSizer() ? GetSizer()->CalcMin().GetHeight() : 0;
 }
 
+int ParameterPanel::NaturalWidth() const {
+    return GetSizer() ? GetSizer()->CalcMin().GetWidth() : 0;
+}
+
 void ParameterPanel::BuildCropBox(wxSizer* parent_sizer) {
     auto* box = new wxStaticBoxSizer(wxVERTICAL, this, _("Crop (before scaling)"));
 
+    // The switch and the unit it works in share a row.
+    auto* head_row = new wxBoxSizer(wxHORIZONTAL);
     crop_enable_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("Enable crop"));
-    box->Add(crop_enable_, 0, wxALL, 4);
-
-    // Width/Height on top, X/Y below - not all four in one row - so
-    // there's room for each spinner to be a reasonable width without
-    // squeezing four of them into one row.
-    auto* grid = new wxFlexGridSizer(4, 2, 4, 6);
-    grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Width")), 0, wxALIGN_CENTER_VERTICAL);
-    grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Height")), 0, wxALIGN_CENTER_VERTICAL);
-    crop_w_ = new wxSpinCtrlDouble(box->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
-                                    wxSP_ARROW_KEYS, 0, 100, 100, 1);
-    grid->Add(crop_w_, 0);
-    crop_h_ = new wxSpinCtrlDouble(box->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
-                                    wxSP_ARROW_KEYS, 0, 100, 100, 1);
-    grid->Add(crop_h_, 0);
-    grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, "X"), 0, wxALIGN_CENTER_VERTICAL);
-    grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, "Y"), 0, wxALIGN_CENTER_VERTICAL);
-    crop_x_ = new wxSpinCtrlDouble(box->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
-                                    wxSP_ARROW_KEYS, 0, 100, 0, 1);
-    grid->Add(crop_x_, 0);
-    crop_y_ = new wxSpinCtrlDouble(box->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
-                                    wxSP_ARROW_KEYS, 0, 100, 0, 1);
-    grid->Add(crop_y_, 0);
-    box->Add(grid, 0, wxALL, 4);
-
-    auto* unit_row = new wxBoxSizer(wxHORIZONTAL);
     crop_unit_px_ = new wxRadioButton(box->GetStaticBox(), wxID_ANY, _("Pixels"), wxDefaultPosition, wxDefaultSize,
                                        wxRB_GROUP);
     crop_unit_pct_ = new wxRadioButton(box->GetStaticBox(), wxID_ANY, _("Percent"));
-    unit_row->Add(crop_unit_px_, 0, wxRIGHT, 10);
-    unit_row->Add(crop_unit_pct_, 0);
-    box->Add(unit_row, 0, wxALL, 4);
+    head_row->Add(crop_enable_, 0, wxALIGN_CENTER_VERTICAL);
+    head_row->AddStretchSpacer(1);
+    head_row->Add(crop_unit_px_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    head_row->Add(crop_unit_pct_, 0, wxALIGN_CENTER_VERTICAL);
+    box->Add(head_row, 0, wxEXPAND | wxALL, kPad);
+
+    // Width and Height in one row, X and Y in the next, each label to the left of its spinner.
+    auto* grid = new wxFlexGridSizer(4, 4, 6);
+    grid->AddGrowableCol(1, 1);
+    grid->AddGrowableCol(3, 1);
+    auto add_spin = [&](const wxString& caption, wxSpinCtrlDouble*& spin, double value) {
+        grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, caption), 0, wxALIGN_CENTER_VERTICAL);
+        spin = new wxSpinCtrlDouble(box->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
+                                     wxSP_ARROW_KEYS, 0, 100, value, 1);
+        grid->Add(spin, 1, wxEXPAND);
+    };
+    add_spin(_("Width"), crop_w_, 100);
+    add_spin(_("Height"), crop_h_, 100);
+    add_spin("X", crop_x_, 0);
+    add_spin("Y", crop_y_, 0);
+    box->Add(grid, 0, wxEXPAND | wxALL, kPad);
 
     auto* ratio_row = new wxBoxSizer(wxHORIZONTAL);
     crop_ratio_lock_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("Lock aspect ratio"));
@@ -199,9 +205,9 @@ void ParameterPanel::BuildCropBox(wxSizer* parent_sizer) {
     crop_ratio_choice_ = new wxChoice(box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, ratio_labels);
     crop_ratio_choice_->SetSelection(0);
     ratio_row->Add(crop_ratio_choice_, 1);
-    box->Add(ratio_row, 0, wxEXPAND | wxALL, 4);
+    box->Add(ratio_row, 0, wxEXPAND | wxALL, kPad);
 
-    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, 8);
+    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, kBoxGap);
 
     crop_enable_->Bind(wxEVT_CHECKBOX, &ParameterPanel::OnCropEnableToggled, this);
     crop_unit_px_->Bind(wxEVT_RADIOBUTTON, &ParameterPanel::OnCropUnitChanged, this);
@@ -224,11 +230,12 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
     // single image once "Show HAM preview" lived in it.
     auto* box = new wxStaticBoxSizer(wxVERTICAL, this, _("Rendering"));
 
+    // The switch and the keyframe list share a row: the list is greyed out without the switch anyway.
     animation_enable_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("Enable animation"));
     animation_enable_->SetToolTip(_("Requires \"Enable crop\" above to also be checked"));
-    box->Add(animation_enable_, 0, wxALL, 4);
 
     auto* keyframe_row = new wxBoxSizer(wxHORIZONTAL);
+    keyframe_row->Add(animation_enable_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
     keyframe_choice_ = new wxChoice(box->GetStaticBox(), wxID_ANY);
     // Symbols (a keyframe diamond with plus / minus) with tooltips: the row keeps its room for
     // the keyframe list, and the diamond is what animation tools use for a keyframe anyway.
@@ -244,7 +251,7 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
     keyframe_row->Add(keyframe_choice_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
     keyframe_row->Add(add_keyframe_btn_, 0, wxRIGHT, 4);
     keyframe_row->Add(remove_keyframe_btn_, 0);
-    box->Add(keyframe_row, 0, wxEXPAND | wxALL, 4);
+    box->Add(keyframe_row, 0, wxEXPAND | wxALL, kPad);
 
     auto* frames_row = new wxBoxSizer(wxHORIZONTAL);
     frames_row->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Frames between keyframes")), 0,
@@ -252,7 +259,7 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
     frames_per_segment_ = new wxSpinCtrl(box->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition,
                                           wxDefaultSize, wxSP_ARROW_KEYS, 1, 999, 10);
     frames_row->Add(frames_per_segment_, 0);
-    box->Add(frames_row, 0, wxALL, 4);
+    box->Add(frames_row, 0, wxALL, kPad);
 
     auto* speed_row = new wxBoxSizer(wxHORIZONTAL);
     speed_row->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Playback speed")), 0,
@@ -265,55 +272,54 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
           "frame every 60/fps jiffies of 1/60 s). Numbered single images have no speed. Only speeds that "
           "divide 60 are offered, since an ANIM counts in 1/60 s."));
     speed_row->Add(anim_speed_, 0, wxALIGN_CENTER_VERTICAL);
-    box->Add(speed_row, 0, wxALL, 4);
+    box->Add(speed_row, 0, wxALL, kPad);
 
     // Single images = today's numbered-IFF-sequence behavior; Anim-File
     // = a single delta-compressed FORM ANIM (see anim_writer.hpp/cpp -
     // ANIM-5, the most widely supported real-Amiga-playable mode).
     const wxString output_choices[2] = {_("Single images"), _("Anim-File")};
+    // Side by side (one column per choice), not stacked: one row instead of two.
     output_mode_ = new wxRadioBox(box->GetStaticBox(), wxID_ANY, _("Export format"), wxDefaultPosition,
-                                   wxDefaultSize, 2, output_choices, 1, wxRA_SPECIFY_ROWS);
-    box->Add(output_mode_, 0, wxEXPAND | wxALL, 4);
+                                   wxDefaultSize, 2, output_choices, 2, wxRA_SPECIFY_COLS);
+    box->Add(output_mode_, 0, wxEXPAND | wxALL, kPad);
 
     // In-memory real-time preview: plays the same interpolated frame
     // sequence RunAnimationExport would write to disk, but only in the
     // Amiga Preview panel - see MainFrame::StartAnimationPreview/
     // OnPreviewTimer. Loop and Back and forth (ping-pong) combine
     // freely; both are read live on every tick, so toggling either
-    // while already playing takes effect immediately. Nested inside
-    // "Rendering" (its own bordered sub-group, parented off this box's
-    // own wxStaticBox rather than the panel) so the Play/Stop button
-    // and both checkboxes read as one clearly-grouped horizontal row
-    // without becoming a fully separate top-level box.
-    auto* preview_box = new wxStaticBoxSizer(wxHORIZONTAL, box->GetStaticBox(), _("Preview"));
-    play_preview_btn_ = new wxButton(preview_box->GetStaticBox(), wxID_ANY, _("Show HAM preview"));
+    // while already playing takes effect immediately. One plain row at the
+    // bottom of "Rendering": the button and the toggles read as a group by themselves, and a frame
+    // with a caption of its own cost another half row of height.
+    auto* preview_box = new wxBoxSizer(wxHORIZONTAL);
+    play_preview_btn_ = new wxButton(box->GetStaticBox(), wxID_ANY, _("Show HAM preview"));
     // Toggle buttons with symbols, not checkboxes with words: both are read live on every tick
     // and combine freely, and the symbols (repeat, arrow both ways) are the familiar ones.
-    preview_loop_ = new wxBitmapToggleButton(preview_box->GetStaticBox(), wxID_ANY,
+    preview_loop_ = new wxBitmapToggleButton(box->GetStaticBox(), wxID_ANY,
                                              MakeMaskIcon(kIconLoop, kGuiIconSize, icon_color));
     SetMaskIcon(preview_loop_, kIconLoop, kGuiIconSize);
     preview_loop_->SetToolTip(_("Loop: start again from the beginning when the preview reaches the end"));
-    preview_pingpong_ = new wxBitmapToggleButton(preview_box->GetStaticBox(), wxID_ANY,
+    preview_pingpong_ = new wxBitmapToggleButton(box->GetStaticBox(), wxID_ANY,
                                                  MakeMaskIcon(kIconPingPong, kGuiIconSize, icon_color));
     SetMaskIcon(preview_pingpong_, kIconPingPong, kGuiIconSize);
     preview_pingpong_->SetToolTip(_("Back and forth: play forwards, then backwards, and so on"));
     // Next to the button it belongs to: the single-image preview is what it repeats. A toggle
     // button with a symbol like the two next to it - a checkbox with words made the box wider
     // than its column in German, which squeezed the right-hand column out of the window.
-    auto_preview_ = new wxBitmapToggleButton(preview_box->GetStaticBox(), wxID_ANY,
+    auto_preview_ = new wxBitmapToggleButton(box->GetStaticBox(), wxID_ANY,
                                              MakeMaskIcon(kIconAutoPreview, kGuiIconSize, icon_color));
     SetMaskIcon(auto_preview_, kIconAutoPreview, kGuiIconSize);
     auto_preview_->SetToolTip(
         _("Auto preview: convert again by itself whenever a setting changes, after a short pause without "
           "further changes (the newest request wins; a conversion that is still running is replaced). "
           "Not available for animations."));
-    preview_box->Add(play_preview_btn_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
-    preview_box->Add(auto_preview_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
-    preview_box->Add(preview_loop_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
-    preview_box->Add(preview_pingpong_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
-    box->Add(preview_box, 0, wxEXPAND | wxALL, 4);
+    preview_box->Add(play_preview_btn_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+    preview_box->Add(auto_preview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+    preview_box->Add(preview_loop_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+    preview_box->Add(preview_pingpong_, 0, wxALIGN_CENTER_VERTICAL);
+    box->Add(preview_box, 0, wxEXPAND | wxALL, kPad);
 
-    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, 8);
+    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, kBoxGap);
 
     animation_enable_->Bind(wxEVT_CHECKBOX, &ParameterPanel::OnAnimationEnableToggled, this);
     add_keyframe_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnAddKeyframe, this);
@@ -339,7 +345,7 @@ void ParameterPanel::BuildResolutionBox(wxSizer* parent_sizer) {
     for (const auto& p : presets_) preset_labels.Add(p.label);
     resolution_preset_ = new wxChoice(box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, preset_labels);
     resolution_preset_->SetSelection(0);
-    box->Add(resolution_preset_, 0, wxEXPAND | wxALL, 4);
+    box->Add(resolution_preset_, 0, wxEXPAND | wxALL, kPad);
 
     auto* custom_row = new wxBoxSizer(wxHORIZONTAL);
     custom_width_ = new wxSpinCtrl(box->GetStaticBox(), wxID_ANY, "320", wxDefaultPosition, wxDefaultSize,
@@ -350,21 +356,23 @@ void ParameterPanel::BuildResolutionBox(wxSizer* parent_sizer) {
     custom_row->Add(custom_width_, 0, wxRIGHT, 10);
     custom_row->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("H:")), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
     custom_row->Add(custom_height_, 0);
-    box->Add(custom_row, 0, wxALL, 4);
+    box->Add(custom_row, 0, wxALL, kPad);
 
+    // The three modes side by side (one column per choice), not stacked.
     const wxString fit_choices[3] = {_("Fit (letterbox)"), _("Fill (crop)"), _("Stretch")};
     fit_mode_ = new wxRadioBox(box->GetStaticBox(), wxID_ANY, _("Scaling mode"), wxDefaultPosition, wxDefaultSize, 3,
-                                fit_choices, 1, wxRA_SPECIFY_ROWS);
-    box->Add(fit_mode_, 0, wxEXPAND | wxALL, 4);
+                                fit_choices, 3, wxRA_SPECIFY_COLS);
+    box->Add(fit_mode_, 0, wxEXPAND | wxALL, kPad);
 
-    pixel_aspect_caption_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Pixel aspect ratio"));
-    box->Add(pixel_aspect_caption_, 0, wxLEFT | wxTOP, 4);
+    // Caption, slider and value in one row.
     auto* pa_row = new wxBoxSizer(wxHORIZONTAL);
+    pixel_aspect_caption_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Pixel aspect ratio"));
     pixel_aspect_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 20, 200);
     pixel_aspect_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, "1.00");
+    pa_row->Add(pixel_aspect_caption_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
     pa_row->Add(pixel_aspect_, 1, wxALIGN_CENTER_VERTICAL);
     pa_row->Add(pixel_aspect_label_, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
-    box->Add(pa_row, 0, wxEXPAND | wxALL, 4);
+    box->Add(pa_row, 0, wxEXPAND | wxALL, kPad);
 
     parent_sizer->Add(box, 0, wxEXPAND);
 
@@ -401,46 +409,55 @@ void ParameterPanel::BuildColorBox(wxSizer* parent_sizer) {
     profile_choice_->SetToolTip(profile_tip);
     profile_row->Add(profile_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
     profile_row->Add(profile_choice_, 1, wxALIGN_CENTER_VERTICAL);
-    box->Add(profile_row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 4);  // no bottom gap: the grid below has its own
+    box->Add(profile_row, 0, wxEXPAND | wxALL, kPad);
 
-    auto* dither_grid = new wxFlexGridSizer(2, 2, 4, 8);
-    dither_grid->AddGrowableCol(0, 1);
-    dither_grid->AddGrowableCol(1, 1);
-    dither_grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Dithering")), 0, wxALIGN_LEFT);
-    // Applies to every ditherer except "none" (greyed out for that one,
-    // see UpdateDitherStrengthEnabled): error diffusers read it as the
-    // share of error propagated, ordered ditherers as pattern amplitude.
-    dither_strength_label_ =
-        new wxStaticText(box->GetStaticBox(), wxID_ANY, wxString::Format(_("Dither strength: %d%%"), 100));
-    dither_grid->Add(dither_strength_label_, 0, wxALIGN_LEFT);
+    // Dithering and its strength share a row, and so do the quantizer and the color focus: every
+    // caption sits left of its control instead of above it. The strength has no caption of its
+    // own - it is the slider right of the dithering choice, and its tooltip says what it scales.
+    auto* dither_row = new wxBoxSizer(wxHORIZONTAL);
+    dither_row->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Dithering")), 0,
+                    wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
     dither_choice_ = new wxChoice(
         box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize,
         RegistryNames(aic::Registry<aic::IErrorDiffuser>::instance().names()));
     dither_choice_->SetStringSelection("floyd-steinberg");
     if (dither_choice_->GetSelection() == wxNOT_FOUND) dither_choice_->SetSelection(0);
-    dither_grid->Add(dither_choice_, 0, wxEXPAND);
+    dither_row->Add(dither_choice_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    // Applies to every ditherer except "none" (greyed out for that one,
+    // see UpdateDitherStrengthEnabled): error diffusers read it as the
+    // share of error propagated, ordered ditherers as pattern amplitude.
     dither_strength_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 0, 100);
-    dither_grid->Add(dither_strength_, 0, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    box->Add(dither_grid, 0, wxEXPAND | wxALL, 4);
+    dither_strength_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, wxString::Format("%d%%", 100),
+                                              wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
+    dither_strength_label_->SetMinSize(wxSize(dither_strength_label_->GetTextExtent("100%").GetWidth() + 4, -1));
+    const wxString strength_tip =
+        _("Dither strength: with the error-diffusion ditherers the share of each pixel's error that is passed on "
+          "to its neighbors, with the ordered ones (Bayer, blue noise, check patterns) the strength of the pattern. "
+          "Not available without dithering.");
+    dither_strength_->SetToolTip(strength_tip);
+    dither_strength_label_->SetToolTip(strength_tip);
+    dither_row->Add(dither_strength_, 1, wxALIGN_CENTER_VERTICAL);
+    dither_row->Add(dither_strength_label_, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 4);
+    box->Add(dither_row, 0, wxEXPAND | wxALL, kPad);
 
-    auto* choice_grid = new wxFlexGridSizer(2, 2, 4, 8);
-    choice_grid->AddGrowableCol(0, 1);
-    choice_grid->AddGrowableCol(1, 1);
-    choice_grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Palette quantizer")), 0, wxALIGN_LEFT);
-    choice_grid->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Color focus")), 0, wxALIGN_LEFT);
+    auto* choice_row = new wxBoxSizer(wxHORIZONTAL);
+    choice_row->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Palette quantizer")), 0,
+                    wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
     quantizer_choice_ = new wxChoice(
         box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize,
         RegistryNames(aic::Registry<aic::IPaletteQuantizer>::instance().names()));
     quantizer_choice_->SetStringSelection("kmeans");
     if (quantizer_choice_->GetSelection() == wxNOT_FOUND) quantizer_choice_->SetSelection(0);
-    choice_grid->Add(quantizer_choice_, 0, wxEXPAND);
+    choice_row->Add(quantizer_choice_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    choice_row->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Color focus")), 0,
+                    wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
     importance_choice_ = new wxChoice(
         box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize,
         RegistryNames(aic::Registry<aic::IImportanceMap>::instance().names()));
     importance_choice_->SetStringSelection("uniform");
     if (importance_choice_->GetSelection() == wxNOT_FOUND) importance_choice_->SetSelection(0);
-    choice_grid->Add(importance_choice_, 0, wxEXPAND);
-    box->Add(choice_grid, 0, wxEXPAND | wxALL, 4);
+    choice_row->Add(importance_choice_, 1, wxALIGN_CENTER_VERTICAL);
+    box->Add(choice_row, 0, wxEXPAND | wxALL, kPad);
 
     // Refinement and Chroma<->Luminance side by side rather than
     // stacked - same growable-columns FlexGridSizer pattern as the
@@ -460,7 +477,7 @@ void ParameterPanel::BuildColorBox(wxSizer* parent_sizer) {
     grid->Add(palette_iterations_, 0, wxEXPAND);
     grid->Add(chroma_weight_, 0, wxEXPAND);
 
-    box->Add(grid, 0, wxEXPAND | wxALL, 4);
+    box->Add(grid, 0, wxEXPAND | wxALL, kPad);
 
     line_start_modify_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("Allow Modify at line start"));
     line_start_modify_->SetToolTip(
@@ -484,9 +501,9 @@ void ParameterPanel::BuildColorBox(wxSizer* parent_sizer) {
     option_row->Add(line_start_modify_, 0, wxALIGN_CENTER_VERTICAL);
     option_row->AddStretchSpacer(1);
     option_row->Add(lookahead_choice_, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
-    box->Add(option_row, 0, wxEXPAND | wxALL, 4);
+    box->Add(option_row, 0, wxEXPAND | wxALL, kPad);
 
-    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, 8);
+    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, kBoxGap);
 
     palette_iterations_->Bind(wxEVT_SLIDER, &ParameterPanel::OnPaletteIterationsChanged, this);
     profile_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnProfileChosen, this);
@@ -510,8 +527,9 @@ void ParameterPanel::BuildColorCorrectionBox(wxSizer* parent_sizer) {
 
     // 2x2: Brightness/Contrast on top, Gamma/Saturation below - each
     // cell is its own label-above-slider pair, same growable-columns
-    // approach as the crop grid and the refinement/chroma row below.
-    auto* grid = new wxFlexGridSizer(4, 2, 4, 8);
+    // approach as the refinement/chroma row below. A third, narrow column holds the reset button
+    // beside the first slider row, so it does not need a row of its own.
+    auto* grid = new wxFlexGridSizer(4, 3, 4, 8);
     grid->AddGrowableCol(0, 1);
     grid->AddGrowableCol(1, 1);
 
@@ -519,32 +537,35 @@ void ParameterPanel::BuildColorCorrectionBox(wxSizer* parent_sizer) {
     contrast_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Contrast: 1.00"));
     grid->Add(brightness_label_, 0, wxALIGN_LEFT);
     grid->Add(contrast_label_, 0, wxALIGN_LEFT);
+    grid->AddSpacer(0);
 
     brightness_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 0, -50, 50);
     contrast_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 0, 200);
     grid->Add(brightness_, 0, wxEXPAND);
     grid->Add(contrast_, 0, wxEXPAND);
 
-    gamma_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Gamma: 1.00"));
-    saturation_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Saturation: 1.00"));
-    grid->Add(gamma_label_, 0, wxALIGN_LEFT);
-    grid->Add(saturation_label_, 0, wxALIGN_LEFT);
-
-    gamma_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 20, 300);
-    saturation_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 0, 200);
-    grid->Add(gamma_, 0, wxEXPAND);
-    grid->Add(saturation_, 0, wxEXPAND);
-
-    box->Add(grid, 0, wxEXPAND | wxALL, 4);
-
     auto* reset_btn = new wxBitmapButton(
         box->GetStaticBox(), wxID_ANY,
         MakeMaskIcon(kIconReset, kGuiIconSize, wxSystemSettings::GetColour(wxSYS_COLOUR_BTNTEXT)));
     SetMaskIcon(reset_btn, kIconReset, kGuiIconSize);
     reset_btn->SetToolTip(_("Reset brightness, contrast, gamma and saturation to their neutral values"));
-    box->Add(reset_btn, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, 4);
+    grid->Add(reset_btn, 0, wxALIGN_CENTER_VERTICAL);
 
-    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, 8);
+    gamma_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Gamma: 1.00"));
+    saturation_label_ = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Saturation: 1.00"));
+    grid->Add(gamma_label_, 0, wxALIGN_LEFT);
+    grid->Add(saturation_label_, 0, wxALIGN_LEFT);
+    grid->AddSpacer(0);
+
+    gamma_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 20, 300);
+    saturation_ = new wxSlider(box->GetStaticBox(), wxID_ANY, 100, 0, 200);
+    grid->Add(gamma_, 0, wxEXPAND);
+    grid->Add(saturation_, 0, wxEXPAND);
+    grid->AddSpacer(0);
+
+    box->Add(grid, 0, wxEXPAND | wxALL, kPad);
+
+    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, kBoxGap);
 
     brightness_->Bind(wxEVT_SLIDER, &ParameterPanel::OnBrightnessChanged, this);
     contrast_->Bind(wxEVT_SLIDER, &ParameterPanel::OnContrastChanged, this);
@@ -567,7 +588,7 @@ void ParameterPanel::BuildPaletteBox(wxSizer* parent_sizer) {
     save_palette_btn_ = new wxButton(box->GetStaticBox(), wxID_ANY, _("Save palette..."));
     io_row->Add(load_palette_btn_, 1, wxRIGHT, 4);
     io_row->Add(save_palette_btn_, 1);
-    box->Add(io_row, 0, wxEXPAND | wxALL, 4);
+    box->Add(io_row, 0, wxEXPAND | wxALL, kPad);
 
     // Disabled until NotifyPaletteGenerated or a successful load gives
     // it something to actually lock onto - see UpdatePaletteControlsEnabled.
@@ -576,39 +597,34 @@ void ParameterPanel::BuildPaletteBox(wxSizer* parent_sizer) {
 
     // All 16 palette entries as always-editable swatches, kept in sync
     // with whatever the current palette actually is (see
-    // NotifyPaletteGenerated/OnLoadPalette) - laid out as a compact
-    // 8-per-row grid of small, roughly square pickers rather than one
-    // long row of 16. Editing any of them only feeds back into the
+    // NotifyPaletteGenerated/OnLoadPalette) - small, roughly square pickers in one row.
+    // Editing any of them only feeds back into the
     // NEXT conversion depending on the lock checkboxes below: under
     // "Lock Palette" every edit here matters (the whole grid is used
     // as-is); under "Lock color 0" only picker 0's edits matter;
     // otherwise they're purely informational until overwritten by the
     // next generated/loaded palette.
-    // The lock shares the swatches' caption row: it is about exactly this palette, and the row it used
-    // to have of its own would grow the column that sets the window height (see BuildColorBox).
-    auto* palette_head = new wxBoxSizer(wxHORIZONTAL);
-    palette_head->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Current palette")), 0,
-                      wxALIGN_CENTER_VERTICAL);
-    palette_head->AddStretchSpacer(1);
-    palette_head->Add(lock_palette_, 0, wxALIGN_CENTER_VERTICAL);
-    box->Add(palette_head, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 4);
-    auto* color_grid = new wxGridSizer(2, 8, 3, 3);
+    auto* color_grid = new wxGridSizer(1, 16, 0, 2);
     for (int i = 0; i < 16; ++i) {
         color_picker_[static_cast<size_t>(i)] =
             new wxColourPickerCtrl(box->GetStaticBox(), wxID_ANY, *wxBLACK, wxDefaultPosition, wxDefaultSize,
                                     wxCLRP_DEFAULT_STYLE & ~wxCLRP_SHOW_LABEL);
-        color_picker_[static_cast<size_t>(i)]->SetMinSize(wxSize(28, 28));
+        color_picker_[static_cast<size_t>(i)]->SetMinSize(wxSize(kSwatchSize, kSwatchSize));
         color_picker_[static_cast<size_t>(i)]->SetToolTip(wxString::Format(_("Color %d"), i));
         color_grid->Add(color_picker_[static_cast<size_t>(i)], 0, wxALIGN_CENTER_HORIZONTAL);
     }
-    box->Add(color_grid, 0, wxALL, 4);
+    box->Add(color_grid, 0, wxEXPAND | wxALL, kPad);
 
-    // Only color 0 gets its own lock - see the header comment on
-    // lock_color0_ for why.
+    // Only color 0 gets its own lock - see the header comment on lock_color0_ for why. The two
+    // locks share a row below the swatches they are about.
     lock_color0_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("Lock color 0 (Amiga background)"));
-    box->Add(lock_color0_, 0, wxALL, 4);
+    auto* lock_row = new wxBoxSizer(wxHORIZONTAL);
+    lock_row->Add(lock_palette_, 0, wxALIGN_CENTER_VERTICAL);
+    lock_row->AddStretchSpacer(1);
+    lock_row->Add(lock_color0_, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+    box->Add(lock_row, 0, wxEXPAND | wxALL, kPad);
 
-    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, 8);
+    parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, kBoxGap);
 
     load_palette_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnLoadPalette, this);
     save_palette_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnSavePalette, this);
@@ -622,12 +638,12 @@ void ParameterPanel::BuildOutputBox(wxSizer* parent_sizer) {
 
     compress_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("ByteRun1 compression"));
     compress_->SetValue(true);
-    box->Add(compress_, 0, wxALL, 4);
+    box->Add(compress_, 0, wxALL, kPad);
 
     const wxString lace_choices[3] = {_("Automatic"), _("On"), _("Off")};
     lace_mode_ = new wxRadioBox(box->GetStaticBox(), wxID_ANY, _("Interlace flag"), wxDefaultPosition,
-                                 wxDefaultSize, 3, lace_choices, 1, wxRA_SPECIFY_ROWS);
-    box->Add(lace_mode_, 0, wxEXPAND | wxALL, 4);
+                                 wxDefaultSize, 3, lace_choices, 3, wxRA_SPECIFY_COLS);
+    box->Add(lace_mode_, 0, wxEXPAND | wxALL, kPad);
 
     parent_sizer->Add(box, 0, wxEXPAND);
 }
@@ -753,7 +769,7 @@ void ParameterPanel::OnChromaWeightChanged(wxCommandEvent&) {
 }
 
 void ParameterPanel::OnDitherStrengthChanged(wxCommandEvent&) {
-    dither_strength_label_->SetLabel(wxString::Format(_("Dither strength: %d%%"), dither_strength_->GetValue()));
+    dither_strength_label_->SetLabel(wxString::Format("%d%%", dither_strength_->GetValue()));
 }
 
 void ParameterPanel::OnDitherChoiceChanged(wxCommandEvent&) { UpdateDitherStrengthEnabled(); }
@@ -1274,7 +1290,7 @@ void ParameterPanel::LoadDefaults() {
 
     if (cfg->Read("Defaults/DitherStrength", &v) && v >= 0 && v <= 100) {
         dither_strength_->SetValue(static_cast<int>(v));
-        dither_strength_label_->SetLabel(wxString::Format(_("Dither strength: %d%%"), static_cast<int>(v)));
+        dither_strength_label_->SetLabel(wxString::Format("%d%%", static_cast<int>(v)));
     }
     UpdateDitherStrengthEnabled();
 

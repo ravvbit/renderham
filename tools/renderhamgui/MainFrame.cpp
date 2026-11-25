@@ -69,6 +69,9 @@ const int ID_AUTO_PREVIEW_TIMER = wxID_HIGHEST + 25;
 // opened or turned picture does not need to wait for anything.
 const int kAutoPreviewPauseMs = 700;
 const int kAutoPreviewAfterLoadMs = 150;
+// The two preview panes (with their header rows) are never squeezed below this height to make room
+// for the settings below them; the settings scroll instead (see UpdateParamsPanelHeight).
+constexpr int kMinPreviewHeight = 260;
 // The entries of the Recent menu take this id and the following ones (wxFileHistory numbers them).
 const int ID_RECENT_FIRST = wxID_HIGHEST + 30;
 const int kMaxRecentFiles = 9;  // the menu numbers them 1-9, so a digit key picks one
@@ -155,12 +158,14 @@ wxSizer* MainFrame::BuildPreviewHeader(const wxString& title, ImageView* view, w
     // size on this GTK theme/font - halving just the width keeps them
     // tappable while visibly narrower than the text buttons next to them.
     const wxSize kNarrowBtn(42, -1);
-    auto* zoom_box = new wxStaticBoxSizer(wxHORIZONTAL, this, _("Zoom"));
+    // No frame with a caption: the four symbols and the percentage are clear without one, and the
+    // frame cost the row more than a third of its height.
+    auto* zoom_box = new wxBoxSizer(wxHORIZONTAL);
     // Symbols with tooltips instead of "100%", "Fit", "-", "+": four equally narrow buttons
     // that say the same in less room (the percentage next to them shows the current zoom).
     const wxColour icon_color = wxSystemSettings::GetColour(wxSYS_COLOUR_BTNTEXT);
     auto make_zoom_btn = [&](const unsigned char* icon, const wxString& tip) {
-        auto* b = new wxBitmapButton(zoom_box->GetStaticBox(), wxID_ANY, MakeMaskIcon(icon, kGuiIconSize, icon_color),
+        auto* b = new wxBitmapButton(this, wxID_ANY, MakeMaskIcon(icon, kGuiIconSize, icon_color),
                                      wxDefaultPosition, kNarrowBtn);
         SetMaskIcon(b, icon, kGuiIconSize);
         b->SetToolTip(tip);
@@ -170,7 +175,7 @@ wxSizer* MainFrame::BuildPreviewHeader(const wxString& title, ImageView* view, w
     auto* zoom_fit_btn = make_zoom_btn(kIconZoomFit, _("Fit the whole picture into the window"));
     auto* zoom_out_btn = make_zoom_btn(kIconZoomOut, _("Zoom out"));
     auto* zoom_in_btn = make_zoom_btn(kIconZoomIn, _("Zoom in"));
-    auto* zoom_label = new wxStaticText(zoom_box->GetStaticBox(), wxID_ANY, "100%", wxDefaultPosition, wxSize(45, -1),
+    auto* zoom_label = new wxStaticText(this, wxID_ANY, "100%", wxDefaultPosition, wxSize(45, -1),
                                          wxALIGN_RIGHT);
     zoom_box->Add(zoom_actual_btn, 0, wxALIGN_CENTER_VERTICAL | wxALL, 2);
     zoom_box->Add(zoom_fit_btn, 0, wxALIGN_CENTER_VERTICAL | wxALL, 2);
@@ -410,8 +415,18 @@ void MainFrame::Init() {
     } else {
         wxRect area = wxDisplay().GetClientArea();  // primary display
         wxSize best = GetBestSize();  // includes the panel's natural height, see the SetMinSize below
-        int w = std::min(std::max(best.GetWidth(), 900), area.GetWidth() - kDecorationSlackW);
-        int h = std::min(std::max(best.GetHeight(), 820), area.GetHeight() - kDecorationSlackH);
+        // GetBestSize() counts the preview row at its bare minimum, but UpdateParamsPanelHeight() keeps
+        // it at kMinPreviewHeight and takes the difference from the settings, which then scroll even
+        // though the window was made "just big enough". Add the difference, and a little more for the
+        // pictures when the screen has room.
+        const int preview_shortfall = std::max(0, kMinPreviewHeight - preview_row->CalcMin().GetHeight());
+        constexpr int kRoomForPictures = 100;
+        // The settings need a different width in every language (German captions are longer); a window
+        // narrower than that would cut off the right-hand column. 8 = the panel's margin in the frame.
+        const int params_width = params_->NaturalWidth() + 8;
+        int w = std::min(std::max({best.GetWidth(), 900, params_width}), area.GetWidth() - kDecorationSlackW);
+        int h = std::min(std::max(best.GetHeight() + preview_shortfall + kRoomForPictures, 820),
+                         area.GetHeight() - kDecorationSlackH);
         SetSize(wxSize(std::max(w, 700), std::max(h, 500)));
         CentreOnScreen();
     }
@@ -1182,7 +1197,6 @@ void MainFrame::OnSize(wxSizeEvent& event) {
 
 void MainFrame::UpdateParamsPanelHeight() {
     if (!params_ || !toolbar_row_ || !status_row_) return;
-    constexpr int kMinPreviewHeight = 260;  // two preview panes that are still worth looking at
     constexpr int kMinParamsHeight = 120;
     constexpr int kPreviewRowMargins = 8;   // wxALL 4 around the preview row
 
