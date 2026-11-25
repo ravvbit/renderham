@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "aic/limits.hpp"
+#include "file_path.hpp"
 #include "iff_common.hpp"
 
 namespace aic {
@@ -251,7 +252,7 @@ bool write_ham6_anim(const std::vector<HAM6Frame>& frames, const std::string& pa
     put_u32(file, static_cast<uint32_t>(anim_body.size()));
     put_bytes(file, anim_body);
 
-    std::ofstream out(path, std::ios::binary);
+    std::ofstream out(detail::utf8_path(path), std::ios::binary);
     if (!out) {
         if (error_out) *error_out = "could not open output file: " + path;
         return false;

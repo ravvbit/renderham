@@ -2,7 +2,7 @@
 # Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
 #
 # Builds renderHAM (library, command-line tool and GUI) on Windows and macOS and runs the test
-# suite there: on Windows with MinGW-w64 (MSYS2), on macOS natively for Apple Silicon and for Intel.
+# suite there: on Windows with MinGW-w64 (MSYS2, UCRT64), on macOS natively for Apple Silicon and for Intel.
 # This shows that the encoder gives the same results on those systems and that the GUI still
 # compiles and links; it does not start the GUI. The Linux packages are built by linux-packages.yml.
 #
@@ -34,7 +34,7 @@ env:
 
 jobs:
   windows:
-    name: Windows (MinGW-w64)
+    name: Windows (MinGW-w64, UCRT)
     runs-on: windows-2025
     timeout-minutes: 40
     defaults:
@@ -45,14 +45,14 @@ jobs:
 
       - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-gettext-tools
-            mingw-w64-x86_64-wxwidgets3.2-msw
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gettext-tools
+            mingw-w64-ucrt-x86_64-wxwidgets3.2-msw
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release

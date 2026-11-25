@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <fstream>
 
+#include "file_path.hpp"
 #include "iff_common.hpp"
 
 namespace aic {
@@ -79,7 +80,7 @@ bool write_ham6_ilbm(const HAM6Frame& frame, const std::string& path, const Ilbm
     put_u32(file, static_cast<uint32_t>(form_data.size()));
     put_bytes(file, form_data);
 
-    std::ofstream out(path, std::ios::binary);
+    std::ofstream out(detail::utf8_path(path), std::ios::binary);
     if (!out) {
         if (error_out) *error_out = "could not open output file: " + path;
         return false;
