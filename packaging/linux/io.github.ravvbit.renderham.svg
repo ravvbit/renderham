@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  SPDX-License-Identifier: MIT
-  Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
-  Placeholder application icon; to be replaced by a proper one.
--->
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!--
+    SPDX-License-Identifier: MIT
+    Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
+    Placeholder application icon; to be replaced by a proper one.
+  -->
   <rect x="8" y="8" width="240" height="240" rx="36" fill="#14162b"/>
   <g>
     <rect x="28" y="62" width="30" height="30" rx="4" fill="#1b1f3a"/>

@@ -83,7 +83,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            cmake g++ binutils gettext libwxgtk3.2-dev dpkg-dev help2man lintian xvfb
+            cmake g++ binutils gettext libwxgtk3.2-dev dpkg-dev help2man lintian xvfb desktop-file-utils
 
       - name: Build the package
         run: ./scripts/build_deb.sh
