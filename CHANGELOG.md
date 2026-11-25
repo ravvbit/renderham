@@ -81,9 +81,21 @@ All notable changes to this project are documented here. The format follows
   default); untick it for the old behavior. The zoom keys (`Ctrl+=` and so on) act on the result view,
   the source follows; each view's own zoom buttons work on that view and the other follows.
 - GUI: `F6` now cycles four result views (preview, HAM map, error map, original).
+- GUI: more compact layout, so the whole window fits a 1080p screen: the settings below the pictures take
+  fewer rows (Pixels/Percent beside "Enable crop"; width, height, X and Y in two rows; "Enable animation"
+  in the row of the keyframe list; the export format, the scaling mode and the interlace flag side by
+  side; dithering with its strength, and quantizer with color focus, in one row each; the 16 palette
+  swatches in one row; the reset button of the color correction beside its sliders; the frame around the
+  preview buttons and the one around the zoom buttons are gone; smaller gaps). At 1920x1080 all settings
+  are visible and the two pictures are 260 px instead of 166 px high. The dither strength is shown as a
+  percentage only; its tooltip says what it scales.
 
 ### Fixed
 
+- The settings panel was cut off at the bottom in a window of the default size: the start height counted
+  the picture panes at their bare minimum, while the layout later keeps them at 260 px and takes the
+  difference from the settings. The default window width now also follows what the settings need, which
+  is more in German than in English.
 - The Open dialog on Linux (GTK) hid files whose extension is not lower case, such as the `IMG_0001.JPG`
   of many cameras: GTK matches the filter patterns case-sensitively. The patterns now accept every
   spelling.
