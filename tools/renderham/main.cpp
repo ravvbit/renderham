@@ -53,6 +53,13 @@ void print_usage(const char* prog) {
         "                            error diffusion this is the share of the error that is\n"
         "                            propagated to neighbors, for ordered dithering the\n"
         "                            pattern amplitude; lower values mean less noise\n"
+        "      --profile <name>      Quality profile: fast, standard (the default) or best.\n"
+        "                            Sets --quantizer, --palette-iterations, --lookahead and\n"
+        "                            --lookahead-beam together; those options, given too, win.\n"
+        "                            fast = 1 refinement pass (about a quarter less time, same\n"
+        "                            error); best = 8 passes and lookahead 4 (about 5 % less\n"
+        "                            error on photos, about 7 times slower)\n"
+        "      --list-profiles       List the quality profiles and what they set, and exit\n"
         "      --quantizer <name>    Palette quantizer to use (default kmeans)\n"
         "      --color-focus <name>  Per-pixel palette-priority map: uniform | center |\n"
         "                            edge | center-edge | golden-ratio (default uniform)\n"
@@ -61,11 +68,15 @@ void print_usage(const char* prog) {
         "      --chroma-weight <f>   Chroma vs. luminance weight, 0-4, in the encoder's\n"
         "                            color distance (default 1.0 = unweighted;\n"
         "                            <1 prioritizes luminance accuracy over color)\n"
-        "      --load-palette <path.iff>  Load and lock the palette from a saved\n"
-        "                            palette file instead of quantizing a new one\n"
-        "                            (also disables --palette-iterations refinement)\n"
-        "      --save-palette <path.iff>  Save the palette this conversion actually\n"
-        "                            used, as a standalone loadable/openable ILBM\n"
+        "      --load-palette <path>  Load and lock the palette from a saved palette\n"
+        "                            file instead of quantizing a new one (also disables\n"
+        "                            --palette-iterations refinement). The file may be an\n"
+        "                            IFF ILBM, a JASC palette (.pal) or a GIMP palette\n"
+        "                            (.gpl), recognized by its content; exactly 16 colors\n"
+        "      --save-palette <path>  Save the palette this conversion actually used. The\n"
+        "                            format follows the extension: .pal = JASC palette,\n"
+        "                            .gpl = GIMP palette, anything else (.iff) = a\n"
+        "                            standalone ILBM that also opens in Amiga viewers\n"
         "      --fix-color0 <r>,<g>,<b>  Force palette index 0 to this exact 8-bit\n"
         "                            RGB value (also the border/background color\n"
         "                            outside the bitmap on real Amiga hardware)\n"
@@ -167,6 +178,20 @@ int main(int argc, char** argv) {
     int rotate_quarter_turns = 0;
     bool flip_h = false, flip_v = false;
 
+    // --profile first, wherever it stands on the command line, so that the options that set one of
+    // its four values by hand (--quantizer, --palette-iterations, --lookahead, --lookahead-beam)
+    // win over it in either order.
+    for (int i = 1; i + 1 < argc; ++i) {
+        if (std::string(argv[i]) != "--profile") continue;
+        const aic::QualityProfileInfo* profile = aic::find_quality_profile(argv[i + 1]);
+        if (!profile) {
+            std::string names;
+            for (const auto& p : aic::quality_profiles()) names += (names.empty() ? "" : ", ") + std::string(p.key);
+            die(std::string("--profile expects one of: ") + names + "; got '" + argv[i + 1] + "'");
+        }
+        aic::apply_quality_profile(*profile, &opts);
+    }
+
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "-h" || a == "--help") {
@@ -182,6 +207,15 @@ int main(int argc, char** argv) {
         } else if (a == "--list-dithers") {
             for (const auto& n : aic::Registry<aic::IErrorDiffuser>::instance().names()) std::cout << n << "\n";
             return 0;
+        } else if (a == "--list-profiles") {
+            for (const auto& p : aic::quality_profiles()) {
+                std::cout << p.key << ": --quantizer " << p.quantizer << " --palette-iterations "
+                          << p.palette_refinement_iterations << " --lookahead " << p.lookahead << " --lookahead-beam "
+                          << p.lookahead_beam << "\n";
+            }
+            return 0;
+        } else if (a == "--profile" && need_arg(i, argc, a.c_str())) {
+            ++i;  // already applied above
         } else if (a == "--list-quantizers") {
             for (const auto& n : aic::Registry<aic::IPaletteQuantizer>::instance().names()) std::cout << n << "\n";
             return 0;

@@ -197,6 +197,13 @@ private:
     void OnResolutionPresetChanged(wxCommandEvent&);
     void OnFitModeChanged(wxCommandEvent&);
     void OnPaletteIterationsChanged(wxCommandEvent&);
+    // "Quality profile": picking one writes its quantizer, refinement passes and lookahead into the
+    // three controls; changing any of those three by hand makes the choice follow (it shows the
+    // profile the three add up to, or "Custom").
+    void OnProfileChosen(wxCommandEvent&);
+    void ApplyQualityProfile(const aic::QualityProfileInfo& profile);
+    void SyncProfileChoice();
+    void OnQualitySettingChanged(wxCommandEvent&);
     void OnChromaWeightChanged(wxCommandEvent&);
     void OnDitherStrengthChanged(wxCommandEvent&);
     void OnDitherChoiceChanged(wxCommandEvent&);
@@ -290,6 +297,7 @@ private:
     wxStaticText* pixel_aspect_label_ = nullptr;
 
     wxChoice* dither_choice_ = nullptr;
+    wxChoice* profile_choice_ = nullptr;  // the profiles in aic::quality_profiles() order, then "Custom"
     wxChoice* quantizer_choice_ = nullptr;
     wxChoice* importance_choice_ = nullptr;
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
 #include "MainFrame.hpp"
+#include "FileFilters.hpp"
 #include "GuiIcons.hpp"
 #include "IconUtil.hpp"
 #include "TransformIcons.hpp"
@@ -81,34 +82,6 @@ wxImage ToWxImage(const aic::Image& img) {
         }
     }
     return wxImage(w, h, buf, false);
-}
-
-// The "Open" dialog's filter, built from the library's list of readable formats (so the dialog,
-// the desktop entry and the loader cannot drift apart): "Images (*.png;...)|<patterns>|All Files|*".
-// GTK compares the patterns case-sensitively, so there every letter is spelled in both cases
-// ("*.[jJ][pP][gG]"); without that a camera's IMG_0001.JPG would not show up. The other
-// platforms' dialogs ignore case themselves and do not know the bracket syntax.
-wxString ImageFileWildcard() {
-    wxString shown, patterns;
-    for (const aic::ImageFormat& format : aic::supported_image_formats()) {
-        for (const std::string& ext : format.extensions) {
-            const wxString dotted = "*." + wxString::FromUTF8(ext.c_str());
-            wxString pattern = dotted;
-#ifdef __WXGTK__
-            pattern = "*.";
-            for (const char c : ext) {
-                const wxString lower(1, static_cast<wxChar>(c));
-                const wxString upper = lower.Upper();
-                pattern += "[" + lower + upper + "]";
-            }
-#endif
-            if (!shown.empty()) { shown += ";"; patterns += ";"; }
-            shown += dotted;
-            patterns += pattern;
-        }
-    }
-    return wxString::Format("%s (%s)|%s|%s|%s", _("Images"), shown, patterns, _("All Files"),
-                            wxFileSelectorDefaultWildcardStr);
 }
 
 // "&1 photo.jpg  -  /home/olli/Pictures": file name first (what one scans for), then the folder,
@@ -638,7 +611,7 @@ void MainFrame::OnOpen(wxCommandEvent&) {
     if (!input_path_.empty()) start_dir = wxFileName(input_path_).GetPath();
     else if (recent_files_->GetCount() > 0) start_dir = wxFileName(recent_files_->GetHistoryFile(0)).GetPath();
     if (!start_dir.empty() && !wxFileName::DirExists(start_dir)) start_dir.clear();
-    wxFileDialog dlg(this, _("Open Image"), start_dir, "", ImageFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    wxFileDialog dlg(this, _("Open Image"), start_dir, "", gui::ImageFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dlg.ShowModal() != wxID_OK) return;
     LoadImage(dlg.GetPath());
 }

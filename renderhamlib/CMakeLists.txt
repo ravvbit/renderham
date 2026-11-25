@@ -11,6 +11,7 @@ add_library(renderhamlib STATIC
     src/ham6_encoder.cpp
     src/ham_maps.cpp
     src/quality_metrics.cpp
+    src/quality_profile.cpp
     src/iff_common.cpp
     src/ilbm_writer.cpp
     src/anim_writer.cpp

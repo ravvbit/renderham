@@ -7,6 +7,7 @@ add_executable(renderHAMgui
     MainFrame.cpp
     BackgroundJob.cpp
     ParameterPanel.cpp
+    FileFilters.cpp
     ImageView.cpp
     Localization.cpp
     SettingsDialog.cpp

@@ -18,6 +18,7 @@
 #include "aic/palette_io.hpp"
 #include "aic/pipeline.hpp"
 #include "aic/quality_metrics.hpp"
+#include "aic/quality_profile.hpp"
 #include "aic/registry.hpp"
 #include "aic/resize.hpp"
 #include "aic/sequence.hpp"

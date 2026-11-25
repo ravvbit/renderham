@@ -76,6 +76,10 @@ What you get:
 
 * **Palette quantizers** (`--quantizer`): `kmeans` (default), `median-cut`, `octree`.
   The palette is then refined iteratively (`--palette-iterations`, default 4 passes).
+* **Quality profiles** (`--profile`, the "Quality profile" choice in the GUI): three bundles of
+  quantizer, refinement passes and lookahead, so that one choice trades time against quality –
+  `fast`, `standard` (the default) and `best`; see the table below. Settings given on top of a profile
+  win over it, and the GUI shows "Custom" when the three settings match none of them.
 * **Color focus** (`--color-focus`): tell the palette optimizer which parts of the picture matter
   most – `uniform` (default), `center`, `edge`, `center-edge`, `golden-ratio`.
 * **Chroma vs. luminance weight** (`--chroma-weight`): below 1 the encoder cares more about
@@ -86,8 +90,28 @@ What you get:
 * **Lookahead** (`--lookahead n`, off by default): a beam search that looks `n` pixels ahead when
   choosing a HAM operation. It starts a "modify" chain *before* an edge instead of after it,
   which reduces smearing – at roughly 6× the encoding time.
-* **Palette control**: lock the current palette, load or save it as a standalone ILBM file,
-  force palette entry 0 (the border color on real hardware) to a fixed color.
+* **Palette control**: lock the current palette, load or save it as a standalone file – an IFF ILBM
+  picture (`.iff`), a JASC palette (`.pal`, Paint Shop Pro) or a GIMP palette (`.gpl`) – and force
+  palette entry 0 (the border color on real hardware) to a fixed color. The 16 colors of an Amiga
+  palette are 4 bits per channel; they are scaled to 8 bits (×17) for the other two formats and
+  back, so a palette survives the round trip unchanged. Foreign palettes with 16 entries load as
+  well, rounded to the nearest of the 16 levels per channel.
+
+#### The quality profiles in numbers
+
+| Profile | Quantizer | Refinement passes | Lookahead | Error vs. `standard` | Time vs. `standard` |
+|---|---|---|---|---|---|
+| `fast` | `kmeans` | 1 | off | the same (photos ±0.0 %, others −1.9 … +0.3 %) | 0.73× (photos), 0.81× (others) |
+| `standard` | `kmeans` | 4 | off | – | 1× (about 0.2 s at 320×256) |
+| `best` | `kmeans` | 8 | 4 pixels | photos −4.8 % (−3.6 … −6.6 %), SSIM +0.006; others −0.9 % (−4.1 … +0.3 %) | about 7× |
+
+Measured with the command line on four photographs and seven further test pictures (textures, a
+test chart, …) at 320×256, Release build, wall time of the whole run including loading the picture,
+best of three. The first refinement pass does nearly all the work of the later ones, which is why
+`fast` costs nothing in quality; the lookahead is what makes `best` slow, and it pays off mostly on
+photographs with soft edges – flat or regular pictures such as grass, gravel or coins gain
+nothing. The error is the mean OKLab distance the converter prints. `renderHAM --list-profiles`
+shows what each profile sets; a profile never touches dithering, size or color correction.
 
 ### Getting the picture into shape
 
@@ -138,6 +162,10 @@ render pan frames with `--crop` from a script).
 * Open an image with the button, with drag and drop, or from the **Recent** list next to it (the last
   nine images; `Ctrl+Shift+O`, then a digit key). Readable formats: PNG, JPEG, BMP, TGA, GIF (first
   frame), Photoshop PSD (the flattened picture) and binary PPM/PGM.
+* The **Quality profile** at the top of the HAM conversion settings sets the quantizer, the
+  refinement passes and the lookahead below it in one go; changing one of those by hand makes it
+  read "Custom". "Load palette..." and "Save palette..." handle IFF ILBM, JASC `.pal` and GIMP `.gpl`
+  files; a saved name without an extension gets the one of the selected file type.
 * Conversions run in the background with a progress display; `Esc` cancels.
 * Settings can be saved as your defaults. The interface is in English by default; a German
   translation can be chosen in the Settings dialog or with `--lang de`.
@@ -161,7 +189,7 @@ render pan frames with `--crop` from a script).
 renderHAM -i photo.jpg -o photo.iff
 renderHAM -i photo.jpg -o photo.iff --dither bayer --fit fill --preview preview.png
 renderHAM -i photo.jpg -o photo.iff --crop 50%x50%+25%+25% --width 352 --height 280 --lookahead 3
-renderHAM --list-dithers          # also: --list-quantizers, --list-color-focus
+renderHAM --list-dithers          # also: --list-quantizers, --list-color-focus, --list-profiles
 renderHAM --help
 ```
 
@@ -183,7 +211,8 @@ The most useful options (see `--help` for all of them):
 | `--color-focus`, `--chroma-weight` | Where and what the palette should favor | `uniform`, 1.0 |
 | `--lookahead n` | Look `n` pixels ahead (0–8) | off |
 | `--brightness`, `--contrast`, `--gamma`, `--saturation` | Output-only color correction | neutral |
-| `--load-palette`, `--save-palette`, `--fix-color0` | Palette control | – |
+| `--profile name` | `fast`, `standard` or `best`: a bundle of quantizer, refinement passes and lookahead (see below); the single options above override it | `standard` |
+| `--load-palette`, `--save-palette`, `--fix-color0` | Palette control; the format follows the extension (`.iff`, `.pal`, `.gpl`) when saving and the content when loading | – |
 | `--preview`, `--ham-map`, `--error-map` | Also write PNG previews/maps | – |
 | `--no-compress`, `--lace`, `--no-lace` | Output file options | RLE on, lace automatic |
 
@@ -269,9 +298,10 @@ Try it:
 cd build && ctest --output-on-failure
 ```
 
-Seven test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
-animation sequences and timing, dither anchoring, and the quality figures (the latter against
-values computed independently with NumPy). Beyond ctest, the Python tools in `testdata/` check
+Ten test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
+animation sequences and timing, dither anchoring, the quality figures (the latter against
+values computed independently with NumPy), the readable image formats, the palette file formats
+and the quality profiles. Beyond ctest, the Python tools in `testdata/` check
 the output files: `verify_ilbm.py` parses an IFF file independently of the C++ code, and
 `decode_ham6_independent.py` is a from-scratch HAM6 decoder whose result is compared pixel by
 pixel with the tool's own preview. `scripts/ham_eval.py` compares settings objectively
