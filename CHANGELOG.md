@@ -13,6 +13,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **Windows and macOS builds in CI**: a GitHub Actions workflow (`.github/workflows/windows-macos.yml`)
+  builds the library, the command-line tool and the GUI and runs all tests on Windows (MinGW-w64,
+  MSYS2 UCRT64), on macOS with Apple Silicon and on macOS with an Intel processor (wxWidgets 3.2.12
+  built from source and cached on macOS). The GUI is built and linked there but not started; nobody
+  has run it on those systems yet.
+- renderHAMgui is a windowed program (no console window) on Windows and an application bundle,
+  `renderHAMgui.app` (with `Info.plist` and the translation in `Contents/Resources`), on macOS.
+- New test `unicode_paths`: file names with non-ASCII characters in every place that opens a file.
 - **Linux packages**: a GitHub Actions workflow (`.github/workflows/linux-packages.yml`) builds, tests
   and packages renderHAM for x86_64 Linux as a Debian package, an AppImage and a Flatpak, and drafts a
   GitHub release with checksums when a version tag is pushed.

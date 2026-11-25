@@ -311,11 +311,12 @@ Try it:
 cd build && ctest --output-on-failure
 ```
 
-Eleven test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
+Twelve test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
 animation sequences and timing, dither anchoring, the quality figures (the latter against
 values computed independently with NumPy), the readable image formats, the palette file formats,
-the quality profiles and the map from source to canvas that keeps the GUI's two views in step
-(checked against where the pipeline really puts a marker). Beyond ctest, the Python tools in `testdata/` check
+the quality profiles, the map from source to canvas that keeps the GUI's two views in step
+(checked against where the pipeline really puts a marker) and file names with non-ASCII characters
+(umlauts, accents, Japanese) in every place that opens a file. Beyond ctest, the Python tools in `testdata/` check
 the output files: `verify_ilbm.py` parses an IFF file independently of the C++ code, and
 `decode_ham6_independent.py` is a from-scratch HAM6 decoder whose result is compared pixel by
 pixel with the tool's own preview. `scripts/ham_eval.py` compares settings objectively
@@ -376,12 +377,38 @@ flatpak run --command=renderHAM io.github.ravvbit.renderham --help
 The desktop entry, the AppStream metadata and the (placeholder) icon live in `packaging/linux/`;
 all three packages use them.
 
-### Other platforms
+### Windows and macOS
 
-Only Linux (GTK) has been built and tested. The code is portable C++17 and wxWidgets, and the
-build is prepared for a MinGW-w64 cross build for Windows (use the *posix* thread model compiler,
-for example `x86_64-w64-mingw32-g++-posix`, because the animation renderer uses `std::thread`),
-but no Windows or macOS binaries exist and those platforms are untested.
+`.github/workflows/windows-macos.yml` builds renderHAM (library, command-line tool and GUI) and runs
+the whole test suite on **Windows** (MinGW-w64 from MSYS2), on **macOS with Apple Silicon** and on
+**macOS with an Intel processor**, on every push and pull request. That shows the encoder gives the
+same results on those systems and that the GUI compiles and links there. It does **not** start the
+GUI: nobody has used renderHAMgui on Windows or macOS yet, so expect rough edges (bug reports are
+welcome). No Windows or macOS programs are published yet.
+
+What the code does for those systems: file names with non-ASCII characters work (the library takes
+UTF-8 paths and hands Windows what it expects; the command-line tool reads its arguments as UTF-16
+there); renderHAMgui is a windowed program without a console window on Windows and an application
+bundle (`renderHAMgui.app`, with the translation inside) on macOS.
+
+To build by hand, follow the steps of the workflow file:
+
+* **Windows:** install [MSYS2](https://www.msys2.org), open its *UCRT64* shell and run
+  `pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,gettext-tools,wxwidgets3.2-msw}`, then
+  `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build`. The programs
+  find their DLLs in MSYS2's `ucrt64/bin` folder; a package that carries them along is still to come.
+  The MinGW-w64 compiler has to use the *posix* thread model (MSYS2's does), because the animation
+  renderer uses `std::thread`.
+* **macOS:** install Xcode's command-line tools, CMake, Ninja and gettext (for example with
+  Homebrew) and build wxWidgets 3.2 for your processor; the workflow does that from the source
+  archive as a static library (`macos` job, step "Build wxWidgets") and caches the result, because
+  Homebrew has no wxWidgets 3.2 package for Intel Macs. Then configure with
+  `-DwxWidgets_CONFIG_EXECUTABLE=<prefix>/bin/wx-config` and build as usual. The result is
+  `build/tools/renderhamgui/renderHAMgui.app`.
+
+Programs built this way are not signed. Windows may warn about an unknown publisher (SmartScreen),
+and macOS refuses to open an unsigned app by double-click the first time (open it through
+System Settings > Privacy & Security > "Open Anyway").
 
 ### Translating the GUI
 
@@ -403,7 +430,8 @@ tests/               ctest programs
 testdata/            small synthetic test pictures and independent verification scripts
 scripts/             Debian and AppImage packaging, icon generators, evaluation and translation helpers
 packaging/linux/     desktop entry, AppStream metadata, icon and the Flatpak manifest
-.github/workflows/   GitHub Actions: build, test and package for Linux
+packaging/macos/     Info.plist of the macOS application bundle
+.github/workflows/   GitHub Actions: build, test and package for Linux; build and test for Windows and macOS
 third_party/stb/     vendored single-file libraries
 cmake/               CMake helper for the self-registering components
 docs/                images for this README

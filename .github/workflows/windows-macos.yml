@@ -74,6 +74,9 @@ jobs:
           - name: Apple Silicon
             runner: macos-15
             arch: arm64
+          - name: Apple Silicon, macOS 26
+            runner: macos-26
+            arch: arm64
           - name: Intel
             runner: macos-15-intel
             arch: x86_64
