@@ -38,10 +38,28 @@ else()
     target_compile_options(renderHAMgui PRIVATE -Wall -Wextra)
 endif()
 
+if (WIN32)
+    # Icon, manifest (modern controls, high-DPI) and version information, see packaging/windows/.
+    set(AIC_WINDOWS_ICON ${PROJECT_SOURCE_DIR}/packaging/windows/renderham.ico)
+    set(AIC_WINDOWS_MANIFEST ${PROJECT_SOURCE_DIR}/packaging/windows/renderham.manifest)
+    configure_file(${PROJECT_SOURCE_DIR}/packaging/windows/renderham.rc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/renderham.rc @ONLY)
+    target_sources(renderHAMgui PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/renderham.rc)
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/renderham.rc PROPERTIES
+        OBJECT_DEPENDS "${AIC_WINDOWS_ICON};${AIC_WINDOWS_MANIFEST}")
+endif()
+
 if (APPLE)
+    # The bundle is renderHAM.app (the program inside it is called renderHAM, too). The icon goes
+    # to Contents/Resources.
+    set(AIC_MACOS_ICON ${PROJECT_SOURCE_DIR}/packaging/macos/renderham.icns)
+    set_source_files_properties(${AIC_MACOS_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(renderHAMgui PRIVATE ${AIC_MACOS_ICON})
     set_target_properties(renderHAMgui PROPERTIES
+        OUTPUT_NAME renderHAM
         MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in
         MACOSX_BUNDLE_BUNDLE_NAME renderHAM
+        MACOSX_BUNDLE_ICON_FILE renderham.icns
         MACOSX_BUNDLE_GUI_IDENTIFIER io.github.ravvbit.renderham
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
         MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})

@@ -6,6 +6,10 @@ cmake_minimum_required(VERSION 3.16)
 # which reads this line. When releasing: bump it, update CHANGELOG.md, tag vX.Y.Z.
 project(renderham VERSION 0.1.0 LANGUAGES CXX)
 
+if (WIN32)
+    enable_language(RC)  # the GUI's icon, manifest and version information (packaging/windows/)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -196,6 +196,9 @@ wxSizer* MainFrame::BuildPreviewHeader(const wxString& title, ImageView* view, w
 }
 
 void MainFrame::Init() {
+#ifdef __WXMSW__
+    SetIcon(wxICON(renderham));  // the icon resource of packaging/windows/renderham.rc.in
+#endif
     auto* root = new wxBoxSizer(wxVERTICAL);
 
     // Toolbar row.
