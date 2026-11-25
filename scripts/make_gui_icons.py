@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generates tools/renderhamgui/GuiIcons.hpp: 24x24 alpha masks for the icon buttons of the GUI
-(zoom, reset, add/remove keyframe, loop, ping-pong, play, stop, cancel).
+(zoom, reset, add/remove keyframe, loop, ping-pong, play, auto preview, stop, cancel).
 
 Same technique as scripts/make_transform_icons.py: masks instead of Unicode characters in the
 button text (a font without the glyph shows empty buttons), tinted with the theme's text color
@@ -133,6 +133,19 @@ def play():
     return im
 
 
+def auto_preview():
+    """Clockwise 'refresh' circle around a play triangle: the preview repeats by itself."""
+    im = canvas(); d = ImageDraw.Draw(im)
+    cx, cy, r, w = 0.50, 0.50, 0.36, 0.09
+    end = math.radians(235)                                   # PIL angles run clockwise from 3 o'clock
+    d.arc((P(cx - r, cy - r), P(cx + r, cy + r)), -35, 235, fill=255, width=int(w * S))
+    ex, ey = cx + r * math.cos(end), cy + r * math.sin(end)   # where the arc ends
+    tx, ty = -math.sin(end), math.cos(end)                    # clockwise tangent there
+    arrow_head(d, (ex + tx * 0.10, ey + ty * 0.10), (tx, ty), length=0.26, half_width=0.17)
+    d.polygon([P(0.42, 0.35), P(0.42, 0.65), P(0.67, 0.50)], fill=255)
+    return im
+
+
 def stop():
     im = canvas(); d = ImageDraw.Draw(im)
     d.rectangle((P(0.22, 0.22), P(0.78, 0.78)), fill=255)
@@ -157,6 +170,7 @@ icons = {
     "kIconLoop": finish(loop()),
     "kIconPingPong": finish(pingpong()),
     "kIconPlay": finish(play()),
+    "kIconAutoPreview": finish(auto_preview()),
     "kIconStop": finish(stop()),
     "kIconCancel": finish(cancel()),
 }

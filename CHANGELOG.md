@@ -21,12 +21,72 @@ All notable changes to this project are documented here. The format follows
 - Desktop integration on Linux: menu entry, AppStream metadata and a placeholder icon in
   `packaging/linux/`, installed by `cmake --install`; the license texts are installed to
   `share/doc/renderham/`.
+- **Recent images** (GUI): a "Recent" button next to "Open..." (also `Ctrl+Shift+O`) lists the last nine
+  opened images, most recent first; a digit key picks one. The list is kept between sessions, files that
+  no longer exist are dropped when the menu opens, and "Clear list" empties it.
+- **More input formats**: GIF (first frame), Photoshop PSD (the flattened picture) and binary PPM/PGM can
+  now be opened from the file dialog and are named in the desktop entry (`MimeType=`) of the Linux
+  packages. The loader read them already; only the lists did not mention them. The new
+  `aic::supported_image_formats()` is the one list behind the Open dialog and the desktop entry, and
+  a test (`formats`) loads a sample of every listed format and checks that the desktop entry matches.
+- **Quality profiles**: "Fast", "Standard" and "Best quality" bundle the palette quantizer, the number of
+  refinement passes and the lookahead (`aic::quality_profiles()`, `aic::apply_quality_profile()`). The GUI
+  has a "Quality profile" choice at the top of the HAM conversion settings that sets the three controls
+  below it and follows them (it shows "Custom" when they match no profile); the command line has
+  `--profile <name>` and `--list-profiles`, and the single options still override the profile in either
+  order. The figures behind the three are in the README. A test (`profiles`) checks that "Standard" is
+  the library default and that the profiles are ordered by quality on a sample picture.
+- **Palette files in three formats**: palettes can be saved and loaded as an IFF ILBM picture, as a JASC
+  palette (`.pal`, Paint Shop Pro) and as a GIMP palette (`.gpl`), in the GUI ("Load palette..." /
+  "Save palette...") and on the command line (`--load-palette`, `--save-palette`). Saving picks the format
+  from the file extension, loading from the content. Files that are not palettes of 16 colors are refused
+  with the line number of the first problem. A test (`palette_formats`) round-trips all three formats,
+  reads hand-written files from other programs and checks the refusals.
+- **Linked source and preview** (GUI): zoom and position of the two views are coupled. What you zoom or
+  scroll in one view (zoom keys and buttons, `Ctrl`+wheel, wheel, drag, scroll bars, fit) is done in the
+  other so that both show the same part of the picture at the same size - also with a crop box, fit,
+  fill or stretch, and non-square pixels. The new `aic::canvas_mapping()` (`aic/canvas_mapping.hpp`) is
+  the map from a point of the source to its place on the HAM canvas and back, taken from the same
+  geometry code the pipeline uses; a test (`canvas_mapping`) checks it against where the pipeline really
+  puts a marker for every scaling mode, with crop boxes, with boxes reaching past the source and with
+  non-square pixels. The link is the checkbox **Link zoom and pan** in the row of the source transforms; it is on
+  by default and remembered.
+- **Original view**: the result view choice has a fourth entry, **Original**, which shows the picture the
+  encoder started from (cropped, scaled and color-corrected, before the 4096 colors) at the same zoom and
+  position, so before and after can be flipped without the picture moving. `F6` cycles all four views,
+  `F7` switches between the original and the one you were looking at.
+- **Auto preview** (GUI): a toggle next to **Show HAM preview** converts again by itself when a setting
+  changes - after a short pause without further changes - and once after opening a picture or rotating
+  it. The newest request wins: a conversion that is still running is replaced. Off by default, not
+  available for animations, remembered with the other defaults. `F5` works as before.
 
 ### Changed
 
+- GUI: "Lock current palette" now sits in the row of the "Current palette" caption instead of a row of its
+  own. That makes room for the new "Quality profile" line, so the window is no taller than before and the
+  whole Palette box still fits a 1080p screen.
+- The "Load palette..." dialog lists all palette formats (and "All Files"); the "Save palette..." dialog
+  has one filter per format and adds the extension of the selected one when the name has none. On Linux
+  (GTK) the patterns accept upper-case extensions here, too; the file-filter code of the Open dialog moved
+  to `FileFilters.cpp` for that.
+- The GUI screenshot in the README shows the new layout.
+- The Open dialog starts in the folder of the open picture (or of the most recent one), and the file
+  name next to the buttons is shortened in the middle when it is too long (the tooltip shows the path).
+- "All Files" in the Open dialog uses the platform's "everything" wildcard (`*`), so files without an
+  extension show up there too.
 - README and `THIRD_PARTY_NOTICES.md` state the origin and license of the example photos (also the
   cat photo in the GUI screenshot) and which third-party libraries the AppImage and the Flatpak contain.
 - The README's project layout no longer mentions the removed development log.
+- GUI: the zoom of source and result is no longer independent while **Link zoom and pan** is on (the
+  default); untick it for the old behavior. The zoom keys (`Ctrl+=` and so on) act on the result view,
+  the source follows; each view's own zoom buttons work on that view and the other follows.
+- GUI: `F6` now cycles four result views (preview, HAM map, error map, original).
+
+### Fixed
+
+- The Open dialog on Linux (GTK) hid files whose extension is not lower case, such as the `IMG_0001.JPG`
+  of many cameras: GTK matches the filter patterns case-sensitively. The patterns now accept every
+  spelling.
 
 ## [0.1.0] - 2026-11-22
 

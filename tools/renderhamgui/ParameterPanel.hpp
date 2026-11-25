@@ -20,6 +20,7 @@
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -28,6 +29,7 @@
 class ParameterPanel : public wxScrolledWindow {
 public:
     explicit ParameterPanel(wxWindow* parent);
+    ~ParameterPanel() override;  // out of line: ChangeWatcher is incomplete here
 
     // Height the panel needs to show every control without scrolling. The
     // frame uses it to cap the panel on small screens, where the panel then
@@ -79,6 +81,17 @@ public:
     // keep the Save/Save As button labels honest about what clicking
     // them currently does (see MainFrame::UpdateSaveButtonLabels).
     void SetAnimationToggledCallback(std::function<void(bool)> cb) { animation_toggled_cb_ = std::move(cb); }
+
+    // "Auto preview" toggle: the frame converts again by itself after a pause once a setting
+    // changed. Saved with the other settings by "Save current settings".
+    bool IsAutoPreviewEnabled() const { return auto_preview_->GetValue(); }
+    // Invoked after anything that changes what a single-image preview would look like: a control
+    // the user changed, a crop edit (spinners or rubber band), what the panel itself sets (quality
+    // profile, "reset" of the color correction, a loaded palette), and the auto-preview checkbox
+    // itself. Not for animation settings, not for the palette a conversion reports back. It says
+    // nothing about WHAT changed and may come several times for one change; the frame restarts
+    // its pause timer each time.
+    void SetOptionsChangedCallback(std::function<void()> cb) { options_changed_cb_ = std::move(cb); }
 
     // Whether crop is enabled AND the aspect-ratio lock is checked -
     // this is what ImageView's rubber-band drag consults to decide
@@ -197,6 +210,13 @@ private:
     void OnResolutionPresetChanged(wxCommandEvent&);
     void OnFitModeChanged(wxCommandEvent&);
     void OnPaletteIterationsChanged(wxCommandEvent&);
+    // "Quality profile": picking one writes its quantizer, refinement passes and lookahead into the
+    // three controls; changing any of those three by hand makes the choice follow (it shows the
+    // profile the three add up to, or "Custom").
+    void OnProfileChosen(wxCommandEvent&);
+    void ApplyQualityProfile(const aic::QualityProfileInfo& profile);
+    void SyncProfileChoice();
+    void OnQualitySettingChanged(wxCommandEvent&);
     void OnChromaWeightChanged(wxCommandEvent&);
     void OnDitherStrengthChanged(wxCommandEvent&);
     void OnDitherChoiceChanged(wxCommandEvent&);
@@ -256,7 +276,18 @@ private:
     std::function<void()> play_preview_toggled_cb_;
     std::function<void()> animation_composition_changed_cb_;
     std::function<void()> animation_speed_changed_cb_;
+    std::function<void()> options_changed_cb_;
     bool crop_last_unit_percent_ = false;
+
+    // Sees every command event of the application (wxEventFilter) and reports the value changes
+    // of controls inside this panel to NotifyOptionsChanged - one hook instead of one per control,
+    // which also covers controls added later. Programmatic changes (SetValue and friends) send no
+    // such events, so the places that set controls themselves call NotifyOptionsChanged directly.
+    class ChangeWatcher;
+    std::unique_ptr<ChangeWatcher> change_watcher_;
+    void NotifyOptionsChanged();
+    bool AffectsSinglePreview(const wxWindow* control) const;  // false: animation or export settings
+    wxBitmapToggleButton* auto_preview_ = nullptr;
 
     wxCheckBox* crop_enable_ = nullptr;
     wxSpinCtrlDouble *crop_w_ = nullptr, *crop_h_ = nullptr, *crop_x_ = nullptr, *crop_y_ = nullptr;
@@ -290,6 +321,7 @@ private:
     wxStaticText* pixel_aspect_label_ = nullptr;
 
     wxChoice* dither_choice_ = nullptr;
+    wxChoice* profile_choice_ = nullptr;  // the profiles in aic::quality_profiles() order, then "Custom"
     wxChoice* quantizer_choice_ = nullptr;
     wxChoice* importance_choice_ = nullptr;
 

@@ -11,6 +11,7 @@
 // jobs" block below for the rules.
 
 #include <wx/wx.h>
+#include <wx/filehistory.h>
 
 #include <atomic>
 #include <functional>
@@ -37,6 +38,16 @@ private:
     void Init();
     void LoadImage(const wxString& path);
     void OnOpen(wxCommandEvent&);
+    // "Recent" list (the last few images that were opened, most recent first). It lives in the
+    // configuration under /RecentFiles and is pruned of files that no longer exist whenever the
+    // menu is about to be shown, not at startup (a vanished network share must not delay it).
+    void LoadRecentFiles();
+    void SaveRecentFiles();
+    void RememberFile(const wxString& path);  // moves/puts `path` to the top
+    void ForgetFile(const wxString& path);    // drops `path` (it vanished or cannot be read)
+    void ShowRecentMenu();                    // popup below the "Recent" button (also Ctrl+Shift+O)
+    void OnRecentFile(wxCommandEvent& event);
+    void UpdateInputLabel();                  // file name, size and full path (as tooltip) of the loaded picture
     void OnAbout(wxCommandEvent&);
     void OnSaveAs(wxCommandEvent&);
     void OnTargetDirectory(wxCommandEvent&);
@@ -65,6 +76,28 @@ private:
     // Single-image save (Ctrl+S / Ctrl+Shift+S), also in the background.
     void SaveSingle(const wxString& output_path);
     void UpdatePreviewDisplay();  // (re)renders last_preview_ into preview_view_, applying interlace scaling if requested
+
+    // --- Auto preview -------------------------------------------------------
+    // With "Auto preview" on (ParameterPanel), every change of a setting - and a new or turned
+    // source picture - starts a pause timer; when it runs out without another change, the single
+    // preview is made again (RunConversion: the newest request wins, a running one is replaced).
+    // Only for single images: with animation on, the preview button plays the animation instead.
+    void ScheduleAutoPreview(int delay_ms);
+    void OnAutoPreviewTimer(wxTimerEvent&);
+
+    // --- Linked source/preview views ----------------------------------------
+    // With "Link zoom and pan" on, source_view_ and preview_view_ show the same part of the
+    // picture at the same size: what one of them does (zoom, pan, fit) the other follows, through
+    // aic::CanvasMapping - the crop box, the scaling and the letterbox sit between the two
+    // pictures, so the same pixel position would be the wrong place in the other view. The
+    // mapping belongs to the conversion that produced the preview on display (preview_mapping_),
+    // not to what the controls say now, which may have moved on since.
+    void OnViewChanged(ImageView* origin, bool by_user);
+    // Makes the other view show what `leader` shows. No-op without link, mapping or two pictures.
+    void SyncLinkedView(ImageView* leader);
+    void UpdateZoomLabels();
+    // F7: the picture the encoder was given instead of the HAM result, and back.
+    void ToggleOriginalView();
     // Linearly interpolates params_->GetCropKeyframes() (>= 2 required)
     // across params_->GetFramesPerSegment() frames per segment - shared
     // by RunAnimationExport (writes to disk) and StartAnimationPreview
@@ -118,14 +151,22 @@ private:
     std::optional<aic::PreviewResult> last_preview_;
 
     wxStaticText* input_label_ = nullptr;
+    wxButton* recent_btn_ = nullptr;
+    std::unique_ptr<wxFileHistory> recent_files_;
     wxButton* target_dir_btn_ = nullptr;
     wxButton* save_quick_btn_ = nullptr;
     wxButton* save_as_btn_ = nullptr;
     ImageView* source_view_ = nullptr;
     ImageView* preview_view_ = nullptr;
+    wxStaticText* source_zoom_label_ = nullptr;
     wxStaticText* preview_zoom_label_ = nullptr;
     wxCheckBox* interlace_scale_check_ = nullptr;
-    wxChoice* preview_mode_ = nullptr;  // Preview / HAM map / Error map
+    wxCheckBox* link_views_check_ = nullptr;
+    wxChoice* preview_mode_ = nullptr;  // Preview / HAM map / Error map / Original
+    int mode_before_original_ = 0;      // what F7 goes back to
+    std::optional<aic::CanvasMapping> preview_mapping_;  // empty: no single-frame preview on display
+    ImageView* link_leader_ = nullptr;  // the view the user touched last (source_view_ until then)
+    bool syncing_views_ = false;
     wxStaticText* status_label_ = nullptr;
     ParameterPanel* params_ = nullptr;
 
@@ -175,6 +216,9 @@ private:
     size_t preview_frame_index_ = 0;
     int preview_direction_ = 1;
     bool preview_playing_ = false;
+
+    wxTimer auto_preview_timer_;
+    bool handling_result_ = false;  // inside the code that takes a conversion's result in: no new auto preview from it
 
     // Re-entrancy guard for the bidirectional crop sync: SetCropPixelRect
     // (called from OnCropOverlayEdited) updates spinners without firing

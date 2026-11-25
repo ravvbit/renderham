@@ -58,3 +58,36 @@ target_compile_definitions(test_quality_metrics PRIVATE
     RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata"
     RENDERHAM_TMPDIR="${CMAKE_CURRENT_BINARY_DIR}")
 add_test(NAME quality_metrics COMMAND test_quality_metrics)
+
+# The image formats Image::load() reads; also checks that the desktop entry of the Linux packages
+# (MimeType=) names the same formats.
+add_executable(test_formats test_formats.cpp)
+aic_link_whole_archive(test_formats renderhamlib)
+target_compile_features(test_formats PRIVATE cxx_std_17)
+target_compile_definitions(test_formats PRIVATE
+    RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata"
+    RENDERHAM_TMPDIR="${CMAKE_CURRENT_BINARY_DIR}"
+    RENDERHAM_DESKTOP_FILE="${CMAKE_SOURCE_DIR}/packaging/linux/io.github.ravvbit.renderham.desktop")
+add_test(NAME formats COMMAND test_formats)
+
+# Palette files: ILBM, JASC PAL and GIMP GPL (round trips, files from other programs, damaged files).
+add_executable(test_palette_formats test_palette_formats.cpp)
+aic_link_whole_archive(test_palette_formats renderhamlib)
+target_compile_features(test_palette_formats PRIVATE cxx_std_17)
+target_compile_definitions(test_palette_formats PRIVATE RENDERHAM_TMPDIR="${CMAKE_CURRENT_BINARY_DIR}")
+add_test(NAME palette_formats COMMAND test_palette_formats)
+
+# Quality profiles (Fast / Standard / Best): standard equals the defaults, every profile is valid,
+# and they order as their names say.
+add_executable(test_profiles test_profiles.cpp)
+aic_link_whole_archive(test_profiles renderhamlib)
+target_compile_features(test_profiles PRIVATE cxx_std_17)
+target_compile_definitions(test_profiles PRIVATE RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata")
+add_test(NAME profiles COMMAND test_profiles)
+
+# Where a point of the source lands on the canvas (the GUI couples the zoom and pan of its two views
+# with it), checked against what the pipeline really does.
+add_executable(test_canvas_mapping test_canvas_mapping.cpp)
+aic_link_whole_archive(test_canvas_mapping renderhamlib)
+target_compile_features(test_canvas_mapping PRIVATE cxx_std_17)
+add_test(NAME canvas_mapping COMMAND test_canvas_mapping)

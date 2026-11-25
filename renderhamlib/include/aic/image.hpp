@@ -31,6 +31,21 @@ struct LoadOptions {
     RGBf alpha_background{0.f, 0.f, 0.f};
 };
 
+// One kind of image file that Image::load() reads. This table is the single list of what the
+// programs offer: the GUI builds its "Open" filter from it, and the desktop entry of the Linux
+// packages (MimeType=, packaging/linux/) must name exactly these MIME types - a test checks that.
+//
+// stb_image can read a few more (HDR, Softimage PIC, ASCII PNM): they are left out on purpose,
+// since HDR pictures would come out clipped to the 0..1 range and the others are hardly used.
+struct ImageFormat {
+    const char* name;                      // for people: "PNG", "Photoshop (flattened)"
+    std::vector<std::string> extensions;   // lower case, without the dot
+    const char* mime_type;                 // shared-mime-info name
+};
+
+// The formats Image::load() is meant to read (and keeps working for, see tests/test_formats.cpp).
+const std::vector<ImageFormat>& supported_image_formats();
+
 class Image {
 public:
     Image() = default;
@@ -43,8 +58,10 @@ public:
     RGBf& at(int x, int y);
     const RGBf& at(int x, int y) const;
 
-    // Loads any format stb_image supports (PNG, JPEG, BMP, TGA, ...), applying
-    // `options` (EXIF orientation, alpha background).
+    // Loads an image file (the formats of supported_image_formats(): PNG, JPEG, BMP, TGA, GIF
+    // (first frame), Photoshop PSD (the flattened picture), binary PPM/PGM), applying
+    // `options` (EXIF orientation, alpha background). The format is recognized from the file's
+    // content, not from its name.
     // Returns std::nullopt and fills error_out on failure.
     static std::optional<Image> load(const std::string& path, std::string* error_out = nullptr,
                                      const LoadOptions& options = {});

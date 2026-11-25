@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
 #include "MainFrame.hpp"
+#include "FileFilters.hpp"
 #include "GuiIcons.hpp"
 #include "IconUtil.hpp"
 #include "TransformIcons.hpp"
@@ -10,6 +11,7 @@
 #include <wx/display.h>
 #include <wx/settings.h>
 #include <wx/dnd.h>
+#include <wx/filefn.h>
 #include <wx/filename.h>
 #include <wx/intl.h>
 #include <wx/stdpaths.h>
@@ -58,6 +60,18 @@ const int ID_FLIP_HORIZONTAL = wxID_HIGHEST + 18;
 const int ID_FLIP_VERTICAL = wxID_HIGHEST + 19;
 const int ID_CANCEL_JOB = wxID_HIGHEST + 20;
 const int ID_JOB_TIMER = wxID_HIGHEST + 21;
+const int ID_RECENT_BTN = wxID_HIGHEST + 22;   // the button, and Ctrl+Shift+O
+const int ID_CLEAR_RECENT = wxID_HIGHEST + 23;
+const int ID_TOGGLE_ORIGINAL = wxID_HIGHEST + 24;
+const int ID_AUTO_PREVIEW_TIMER = wxID_HIGHEST + 25;
+// Pause after the last change of a setting before auto preview converts again: long enough to
+// finish a slider drag or a few key presses, short enough to feel like it follows. A newly
+// opened or turned picture does not need to wait for anything.
+const int kAutoPreviewPauseMs = 700;
+const int kAutoPreviewAfterLoadMs = 150;
+// The entries of the Recent menu take this id and the following ones (wxFileHistory numbers them).
+const int ID_RECENT_FIRST = wxID_HIGHEST + 30;
+const int kMaxRecentFiles = 9;  // the menu numbers them 1-9, so a digit key picks one
 
 // aic::Image (float RGB) -> wxImage (byte RGB). wxImage takes ownership
 // of a malloc'd buffer when static_data=false (its default), matching
@@ -75,6 +89,24 @@ wxImage ToWxImage(const aic::Image& img) {
         }
     }
     return wxImage(w, h, buf, false);
+}
+
+// "&1 photo.jpg  -  /home/olli/Pictures": file name first (what one scans for), then the folder,
+// shortened in the middle when it is long. The digit is the menu mnemonic, so pressing 1-9 picks
+// an entry. '&' in a name must be doubled or the menu would take it for a mnemonic.
+wxString RecentMenuLabel(size_t index, const wxString& path) {
+    auto escaped = [](wxString text) {
+        text.Replace("&", "&&");
+        return text;
+    };
+    const wxFileName name(path);
+    wxString folder = name.GetPath();
+    constexpr size_t kMaxFolderChars = 48;
+    if (folder.length() > kMaxFolderChars)
+        folder = folder.Left(20) + wxString::FromUTF8("\xE2\x80\xA6") + folder.Right(27);
+    wxString label = wxString::Format("&%d %s", static_cast<int>(index) + 1, escaped(name.GetFullName()));
+    if (!folder.empty()) label += "  -  " + escaped(folder);
+    return label;
 }
 
 // Accepts a single dropped file and forwards its path; used for both the
@@ -147,11 +179,12 @@ wxSizer* MainFrame::BuildPreviewHeader(const wxString& title, ImageView* view, w
     zoom_box->Add(zoom_label, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 4);
     header->Add(zoom_box, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 4);
 
-    auto update_label = [view, zoom_label] { zoom_label->SetLabel(wxString::Format("%d%%", view->GetZoomPercent())); };
-    zoom_out_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomOut(); update_label(); });
-    zoom_fit_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomToFit(); update_label(); });
-    zoom_actual_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomActual(); update_label(); });
-    zoom_in_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomIn(); update_label(); });
+    // The percentage follows the view itself (see OnViewChanged), whoever zoomed it: these buttons,
+    // the wheel, the keyboard, or the other view when the two are linked.
+    zoom_out_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomOut(); });
+    zoom_fit_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomToFit(); });
+    zoom_actual_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomActual(); });
+    zoom_in_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomIn(); });
 
     if (out_zoom_label) *out_zoom_label = zoom_label;
     return header;
@@ -164,13 +197,20 @@ void MainFrame::Init() {
     auto* toolbar_row = new wxBoxSizer(wxHORIZONTAL);
     auto* open_btn = new wxButton(this, ID_OPEN_BTN, _("Open..."));
     open_btn->SetToolTip(_("Open an image (Ctrl+O)"));
-    input_label_ = new wxStaticText(this, wxID_ANY, _("(no file loaded - or drag an image here)"));
+    recent_btn_ = new wxButton(this, ID_RECENT_BTN, _("Recent"));
+    recent_btn_->SetToolTip(_("Open one of the images opened before (Ctrl+Shift+O)"));
+    // Ellipsized in the middle (the end of a file name matters: its extension), so a long name never
+    // pushes the buttons next to it out of the window; the tooltip holds the full path.
+    input_label_ = new wxStaticText(this, wxID_ANY, _("(no file loaded - or drag an image here)"), wxDefaultPosition,
+                                     wxDefaultSize, wxST_ELLIPSIZE_MIDDLE);
+    input_label_->SetMinSize(wxSize(100, -1));
     target_dir_btn_ = new wxButton(this, ID_TARGET_DIR_BTN, _("Target directory..."));
     save_quick_btn_ = new wxButton(this, ID_SAVE_QUICK_BTN, _("Save"));
     save_quick_btn_->SetToolTip(_("Save to the target directory (Ctrl+S)"));
     save_as_btn_ = new wxButton(this, ID_SAVE_BTN, _("Save As..."));
     save_as_btn_->SetToolTip(_("Save with a file picker (Ctrl+Shift+S)"));
     toolbar_row->Add(open_btn, 0, wxALL, 4);
+    toolbar_row->Add(recent_btn_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
     toolbar_row->Add(input_label_, 1, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     toolbar_row->Add(target_dir_btn_, 0, wxALL, 4);
     toolbar_row->Add(save_quick_btn_, 0, wxALL, 4);
@@ -192,7 +232,7 @@ void MainFrame::Init() {
     preview_view_->SetMinSize(wxSize(150, 100));
 
     auto* src_col = new wxBoxSizer(wxVERTICAL);
-    src_col->Add(BuildPreviewHeader(_("Source"), source_view_, nullptr), 0, wxEXPAND | wxBOTTOM, 2);
+    src_col->Add(BuildPreviewHeader(_("Source"), source_view_, &source_zoom_label_), 0, wxEXPAND | wxBOTTOM, 2);
 
     auto* prev_col = new wxBoxSizer(wxVERTICAL);
     prev_col->Add(BuildPreviewHeader(_("Amiga Preview (HAM6)"), preview_view_, &preview_zoom_label_), 0,
@@ -216,17 +256,21 @@ void MainFrame::Init() {
     // Which image the preview panel shows: the decoded HAM6 result, a map of
     // the HAM operation behind every pixel, or an error map (see
     // aic/ham_maps.hpp). Shares the checkbox's row so the header does not
-    // get taller; F6 cycles through the three.
+    // get taller; F6 cycles through the four.
     preview_mode_ = new wxChoice(this, wxID_ANY);
     preview_mode_->Append(_("Preview"));
     preview_mode_->Append(_("HAM map"));
     preview_mode_->Append(_("Error map"));
+    preview_mode_->Append(_("Original"));
     preview_mode_->SetSelection(0);
     preview_mode_->SetToolTip(
         _("What the preview shows: the decoded HAM6 result, a map of the HAM operation used for each pixel "
-          "(black = Select, red/green/blue = Modify R/G/B), or an error map (brightness = distance from the "
-          "source image, white = 0.10 OKLab or more). F6 cycles through the views. The error map is only "
-          "available for the single-frame preview, not while an animation plays."));
+          "(black = Select, red/green/blue = Modify R/G/B), an error map (brightness = distance from the "
+          "source image, white = 0.10 OKLab or more), or the original: the picture as the encoder received "
+          "it (cropped, scaled, color-corrected), at the size of the preview - the \"before\" to the HAM6 "
+          "\"after\", in the same place at the same zoom. F6 cycles through the views, F7 switches between "
+          "the original and what was shown before. The error map and the original are only available for "
+          "the single-frame preview, not while an animation plays."));
 
     int interlace_row_height =
         std::max(interlace_scale_check_->GetBestSize().GetHeight(), preview_mode_->GetBestSize().GetHeight());
@@ -257,6 +301,16 @@ void MainFrame::Init() {
             transform_row->Add(btn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 2);
             transform_buttons_.push_back(btn);
         }
+        // Right-aligned in the same row, which has room for it: the two views show the same part
+        // of the picture when this is on (see OnViewChanged).
+        link_views_check_ = new wxCheckBox(this, wxID_ANY, _("Link zoom and pan"));
+        link_views_check_->SetToolTip(
+            _("Zoom and pan the source and the preview together, so both always show the same part of the "
+              "picture - the crop box and the scaling are taken into account, so a detail is in the same "
+              "place in both views."));
+        link_views_check_->SetValue(wxConfig::Get()->ReadBool("View/LinkZoomPan", true));
+        transform_row->AddStretchSpacer(1);
+        transform_row->Add(link_views_check_, 0, wxALIGN_CENTER_VERTICAL);
         src_col->Add(transform_row, 0, wxEXPAND | wxBOTTOM, 2);
     }
 
@@ -373,8 +427,24 @@ void MainFrame::Init() {
     }
     target_dir_ = cfg->Read("TargetDirectory", wxEmptyString);
     UpdateTargetDirTooltip();
+    // Only the storage (order, duplicates, size limit) comes from wxFileHistory; the menu is built in
+    // ShowRecentMenu, because the labels wxFileHistory makes show either the bare name or the whole path.
+    recent_files_ = std::make_unique<wxFileHistory>(kMaxRecentFiles, ID_RECENT_FIRST);
+    LoadRecentFiles();
 
     open_btn->Bind(wxEVT_BUTTON, &MainFrame::OnOpen, this);
+    // Button and Ctrl+Shift+O share the id (like Open); the entries (and "Clear list") are menu events.
+    Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { ShowRecentMenu(); }, ID_RECENT_BTN);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { ShowRecentMenu(); }, ID_RECENT_BTN);
+    Bind(wxEVT_MENU, &MainFrame::OnRecentFile, this, ID_RECENT_FIRST, ID_RECENT_FIRST + kMaxRecentFiles - 1);
+    Bind(
+        wxEVT_MENU,
+        [this](wxCommandEvent&) {
+            while (recent_files_->GetCount() > 0) recent_files_->RemoveFileFromHistory(0);
+            SaveRecentFiles();
+            SetStatus(_("List of recent images cleared"));
+        },
+        ID_CLEAR_RECENT);
     target_dir_btn_->Bind(wxEVT_BUTTON, &MainFrame::OnTargetDirectory, this);
     save_quick_btn_->Bind(wxEVT_BUTTON, &MainFrame::OnSaveQuick, this);
     save_as_btn_->Bind(wxEVT_BUTTON, &MainFrame::OnSaveAs, this);
@@ -385,10 +455,11 @@ void MainFrame::Init() {
     Bind(
         wxEVT_MENU,
         [this](wxCommandEvent&) {
-            preview_mode_->SetSelection((preview_mode_->GetSelection() + 1) % 3);
+            preview_mode_->SetSelection((preview_mode_->GetSelection() + 1) % static_cast<int>(preview_mode_->GetCount()));
             UpdatePreviewDisplay();
         },
         ID_CYCLE_VIEW);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { ToggleOriginalView(); }, ID_TOGGLE_ORIGINAL);
     about_btn->Bind(wxEVT_BUTTON, &MainFrame::OnAbout, this);
     // Buttons and keyboard shortcuts share the IDs, so one handler each.
     auto bind_transform = [this](int id, aic::ImageTransform delta, wxString text) {
@@ -419,23 +490,14 @@ void MainFrame::Init() {
     Bind(wxEVT_MENU, [this](wxCommandEvent&) { CancelRunningJob(); }, ID_CANCEL_JOB);
     job_timer_.SetOwner(this, ID_JOB_TIMER);
     Bind(wxEVT_TIMER, &MainFrame::OnJobTimer, this, ID_JOB_TIMER);
+    auto_preview_timer_.SetOwner(this, ID_AUTO_PREVIEW_TIMER);
+    Bind(wxEVT_TIMER, &MainFrame::OnAutoPreviewTimer, this, ID_AUTO_PREVIEW_TIMER);
 
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomIn();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_IN);
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomOut();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_OUT);
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomToFit();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_FIT);
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomActual();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_ACTUAL);
+    // The keys zoom the preview; with the views linked the source goes along.
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomIn(); }, ID_ZOOM_IN);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomOut(); }, ID_ZOOM_OUT);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomToFit(); }, ID_ZOOM_FIT);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomActual(); }, ID_ZOOM_ACTUAL);
 
     // Chosen deliberately, not just "whatever's free": Ctrl+O/S/Shift+S
     // match the near-universal open/save/save-as convention every
@@ -446,7 +508,7 @@ void MainFrame::Init() {
     // K for "Keyframe", unclaimed by anything else here. Ctrl+Q for
     // Quit is the same universal convention as Ctrl+O/S, even though
     // the window's own close button/Alt+F4 already cover it.
-    wxAcceleratorEntry accel_entries[16];
+    wxAcceleratorEntry accel_entries[18];
     accel_entries[0].Set(wxACCEL_NORMAL, WXK_F5, ID_CONVERT);
     accel_entries[1].Set(wxACCEL_CTRL, static_cast<int>('='), ID_ZOOM_IN);
     accel_entries[2].Set(wxACCEL_CTRL, static_cast<int>('-'), ID_ZOOM_OUT);
@@ -463,7 +525,9 @@ void MainFrame::Init() {
     accel_entries[13].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('H'), ID_FLIP_HORIZONTAL);
     accel_entries[14].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('V'), ID_FLIP_VERTICAL);
     accel_entries[15].Set(wxACCEL_NORMAL, WXK_ESCAPE, ID_CANCEL_JOB);
-    SetAcceleratorTable(wxAcceleratorTable(16, accel_entries));
+    accel_entries[16].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('O'), ID_RECENT_BTN);
+    accel_entries[17].Set(wxACCEL_NORMAL, WXK_F7, ID_TOGGLE_ORIGINAL);
+    SetAcceleratorTable(wxAcceleratorTable(18, accel_entries));
 
     // Bidirectional crop <-> rubber-band sync (see the two methods'
     // comments) and drag-and-drop file loading, covering the frame
@@ -480,6 +544,7 @@ void MainFrame::Init() {
         StopAnimationPreview();
     });
     params_->SetPlayPreviewToggledCallback([this] { OnPlayPreviewToggled(); });
+    params_->SetOptionsChangedCallback([this] { ScheduleAutoPreview(kAutoPreviewPauseMs); });
     params_->SetAnimationCompositionChangedCallback([this] { StopAnimationPreview(); });
     // A new speed takes effect at once, also in a preview that is already playing.
     params_->SetAnimationSpeedChangedCallback([this] {
@@ -492,6 +557,17 @@ void MainFrame::Init() {
     SetDropTarget(new FileDropTarget(load_cb));
     source_view_->SetDropTarget(new FileDropTarget(load_cb));
     preview_view_->SetDropTarget(new FileDropTarget(load_cb));
+
+    // Linked zoom and pan (see OnViewChanged). Last, so nothing above reports a view change into
+    // a frame that is not complete yet.
+    link_leader_ = source_view_;
+    source_view_->SetViewChangedCallback([this](bool by_user) { OnViewChanged(source_view_, by_user); });
+    preview_view_->SetViewChangedCallback([this](bool by_user) { OnViewChanged(preview_view_, by_user); });
+    link_views_check_->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent&) {
+        wxConfig::Get()->Write("View/LinkZoomPan", link_views_check_->GetValue());
+        wxConfig::Get()->Flush();
+        if (link_views_check_->GetValue()) SyncLinkedView(link_leader_);
+    });
 }
 
 aic::ConversionOptions MainFrame::MakeOptions() const {
@@ -519,13 +595,14 @@ void MainFrame::ApplySourceTransform(const aic::ImageTransform& delta, const wxS
 
     // The preview shows the old orientation; clear it like a new image would.
     last_preview_.reset();
+    preview_mapping_.reset();
     preview_view_->SetImage(wxImage());
     source_view_->SetImage(ToWxImage(*source_image_));
-    input_label_->SetLabel(wxString::Format(_("%s  (%dx%d)"), wxFileName(input_path_).GetFullName(),
-                                             source_image_->width(), source_image_->height()));
+    UpdateInputLabel();
     SyncCropOverlayFromParams();
     SetStatus(wxString::Format("%s - %dx%d", status_text, source_image_->width(), source_image_->height()));
     Layout();
+    ScheduleAutoPreview(kAutoPreviewAfterLoadMs);
 }
 
 void MainFrame::LoadImage(const wxString& path) {
@@ -536,32 +613,113 @@ void MainFrame::LoadImage(const wxString& path) {
     auto loaded = aic::Image::load(path.ToStdString(), &err, load_opts);
     if (!loaded) {
         wxMessageBox(wxString::Format(_("Failed to load: %s"), err), _("Error"), wxOK | wxICON_ERROR, this);
+        ForgetFile(path);  // no use offering a file again that cannot be read
         return;
     }
 
     input_path_ = path;
+    RememberFile(path);
     source_image_ = std::move(*loaded);
     source_transform_ = aic::ImageTransform{};  // a newly opened picture starts upright
     for (wxButton* b : transform_buttons_) b->Enable(true);
     last_preview_.reset();
-    input_label_->SetLabel(wxString::Format(_("%s  (%dx%d)"), wxFileName(path).GetFullName(),
-                                             source_image_->width(), source_image_->height()));
+    preview_mapping_.reset();
+    UpdateInputLabel();
     params_->SetSourceSize(source_image_->width(), source_image_->height());
     source_view_->SetImage(ToWxImage(*source_image_));
     preview_view_->SetImage(wxImage());
-    if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
     SyncCropOverlayFromParams();
     SetStatus(wxString::Format(_("Source: %dx%d"), source_image_->width(), source_image_->height()));
     Layout();
+    ScheduleAutoPreview(kAutoPreviewAfterLoadMs);
 }
 
 void MainFrame::OnOpen(wxCommandEvent&) {
     if (RefuseWhileExporting()) return;  // before the dialog, not after the user picked a file
-    wxFileDialog dlg(this, _("Open Image"), "", "",
-                      _("Images (*.png;*.jpg;*.jpeg;*.bmp;*.tga)|*.png;*.jpg;*.jpeg;*.bmp;*.tga|All Files|*.*"),
-                      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    // Start where the last picture came from: the open one, else the most recent one of the list.
+    wxString start_dir;
+    if (!input_path_.empty()) start_dir = wxFileName(input_path_).GetPath();
+    else if (recent_files_->GetCount() > 0) start_dir = wxFileName(recent_files_->GetHistoryFile(0)).GetPath();
+    if (!start_dir.empty() && !wxFileName::DirExists(start_dir)) start_dir.clear();
+    wxFileDialog dlg(this, _("Open Image"), start_dir, "", gui::ImageFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dlg.ShowModal() != wxID_OK) return;
     LoadImage(dlg.GetPath());
+}
+
+void MainFrame::UpdateInputLabel() {
+    if (!source_image_ || input_path_.empty()) return;
+    input_label_->SetLabel(wxString::Format(_("%s  (%dx%d)"), wxFileName(input_path_).GetFullName(),
+                                             source_image_->width(), source_image_->height()));
+    input_label_->SetToolTip(input_path_);
+}
+
+void MainFrame::LoadRecentFiles() {
+    wxConfigBase* cfg = wxConfig::Get();
+    const wxString previous = cfg->GetPath();
+    cfg->SetPath("/RecentFiles");
+    recent_files_->Load(*cfg);
+    cfg->SetPath(previous);
+}
+
+void MainFrame::SaveRecentFiles() {
+    wxConfigBase* cfg = wxConfig::Get();
+    const wxString previous = cfg->GetPath();
+    cfg->SetPath("/RecentFiles");
+    recent_files_->Save(*cfg);
+    cfg->SetPath(previous);
+    cfg->Flush();
+}
+
+void MainFrame::RememberFile(const wxString& path) {
+    wxFileName name(path);
+    name.MakeAbsolute();  // "renderHAMgui photo.jpg" must still find the file from another folder
+    recent_files_->AddFileToHistory(name.GetFullPath());
+    SaveRecentFiles();
+}
+
+void MainFrame::ForgetFile(const wxString& path) {
+    wxFileName name(path);
+    name.MakeAbsolute();
+    for (size_t i = recent_files_->GetCount(); i-- > 0;) {
+        if (recent_files_->GetHistoryFile(i) == name.GetFullPath()) recent_files_->RemoveFileFromHistory(i);
+    }
+    SaveRecentFiles();
+}
+
+void MainFrame::ShowRecentMenu() {
+    if (RefuseWhileExporting()) return;
+    // Entries whose file is gone are dropped now rather than offered and then refused.
+    bool pruned = false;
+    for (size_t i = recent_files_->GetCount(); i-- > 0;) {
+        if (!wxFileName::FileExists(recent_files_->GetHistoryFile(i))) {
+            recent_files_->RemoveFileFromHistory(i);
+            pruned = true;
+        }
+    }
+    if (pruned) SaveRecentFiles();
+
+    wxMenu menu;
+    if (recent_files_->GetCount() == 0) {
+        menu.Append(wxID_ANY, _("(no recent images)"))->Enable(false);
+    } else {
+        for (size_t i = 0; i < recent_files_->GetCount(); ++i)
+            menu.Append(ID_RECENT_FIRST + static_cast<int>(i), RecentMenuLabel(i, recent_files_->GetHistoryFile(i)));
+        menu.AppendSeparator();
+        menu.Append(ID_CLEAR_RECENT, _("Clear list"));
+    }
+    PopupMenu(&menu, recent_btn_->GetPosition() + wxPoint(0, recent_btn_->GetSize().GetHeight()));
+}
+
+void MainFrame::OnRecentFile(wxCommandEvent& event) {
+    const size_t index = static_cast<size_t>(event.GetId() - ID_RECENT_FIRST);
+    if (index >= recent_files_->GetCount()) return;
+    const wxString path = recent_files_->GetHistoryFile(index);
+    if (!wxFileName::FileExists(path)) {
+        wxMessageBox(wxString::Format(_("The file no longer exists: %s"), path), _("Error"), wxOK | wxICON_ERROR, this);
+        ForgetFile(path);
+        return;
+    }
+    LoadImage(path);
 }
 
 void MainFrame::UpdateSaveButtonLabels(bool animation_enabled) {
@@ -706,6 +864,7 @@ void MainFrame::RunAnimationExport(const wxString& base_path) {
                     ctx.post([this, st, shown, count, n] {
                         st->display_pending = false;
                         last_preview_ = std::move(*shown);
+                        preview_mapping_.reset();  // each frame has its own crop box: no fixed mapping
                         UpdatePreviewDisplay();
                         SetStatus(wxString::Format(_("Generating animation: frame %d/%d..."), count,
                                                     static_cast<int>(n)));
@@ -863,6 +1022,7 @@ void MainFrame::StartAnimationPreview() {
             preview_playing_ = true;
             params_->SetPreviewPlaying(true);
             last_preview_ = preview_frames_[0];
+            preview_mapping_.reset();
             UpdatePreviewDisplay();
             // The tick follows the Playback speed setting - the same one an exported
             // Anim-File gets - so the preview is as fast as the result will be. There is
@@ -923,6 +1083,7 @@ void MainFrame::OnPreviewTimer(wxTimerEvent&) {
     }
 
     last_preview_ = preview_frames_[preview_frame_index_];
+    preview_mapping_.reset();
     UpdatePreviewDisplay();
 }
 
@@ -1123,6 +1284,7 @@ void MainFrame::RunConversion() {
         wxMessageBox(_("Please open an image first."), _("Notice"), wxOK | wxICON_INFORMATION, this);
         return;
     }
+    auto_preview_timer_.Stop();  // whatever was pending is being done now
     if (!BeginJob(JobKind::Preview, _("Converting..."))) return;
 
     aic::ConversionOptions opts = MakeOptions();
@@ -1130,6 +1292,10 @@ void MainFrame::RunConversion() {
     opts.quality_metrics = true;  // blurred error and SSIM for the status line (~50 ms at 320x256)
     const std::string input = input_path_.ToStdString();
     auto result = std::make_shared<aic::PreviewResult>();
+    // Where the source lands on this result's canvas - from the options this run uses, which is
+    // what the picture will show even if the controls change before it is done.
+    const std::optional<aic::CanvasMapping> mapping =
+        source_image_ ? aic::canvas_mapping(source_image_->width(), source_image_->height(), opts) : std::nullopt;
 
     StartJob(
         [this, opts, input, result](BackgroundJob::Context& ctx) mutable {
@@ -1139,7 +1305,7 @@ void MainFrame::RunConversion() {
             };
             *result = pipeline_.preview(input, opts);
         },
-        [this, result] {
+        [this, result, mapping] {
             if (result->cancelled) {
                 SetStatus(_("Cancelled."));
                 return;
@@ -1150,9 +1316,18 @@ void MainFrame::RunConversion() {
                 SetStatus(_("Conversion failed."));
                 return;
             }
+            // Taking the result in changes controls (the palette swatches); that is no setting of
+            // the user's and must not start the next auto preview.
+            handling_result_ = true;
             last_preview_ = std::move(*result);
             params_->NotifyPaletteGenerated(last_preview_->frame.palette);
-            UpdatePreviewDisplay();
+            handling_result_ = false;
+            const bool geometry_changed = preview_mapping_ != mapping;
+            preview_mapping_ = mapping;
+            UpdatePreviewDisplay();  // keeps zoom and position when the picture has the size of the last one
+            // A new crop, size or scaling puts the picture elsewhere on the canvas: the preview
+            // takes its place from the source again. Otherwise the two still fit.
+            if (geometry_changed) SyncLinkedView(source_view_);
             const aic::QualityMetrics& qm = last_preview_->metrics;
             SetStatus(wxString::Format(_("%dx%d  error=%.4f  blurred=%.4f  SSIM=%.3f  LACE=%s"),
                                         last_preview_->frame.width, last_preview_->frame.height,
@@ -1266,6 +1441,7 @@ void MainFrame::UpdatePreviewDisplay() {
     switch (preview_mode_->GetSelection()) {
         case 1: map = aic::make_ham_map(last_preview_->frame); break;
         case 2: map = aic::make_error_map(last_preview_->canvas, last_preview_->decoded); break;
+        case 3: map = last_preview_->canvas; break;  // what the encoder was given (empty during animation playback)
         default: break;
     }
     wxImage img = ToWxImage(map.empty() ? last_preview_->decoded : map);
@@ -1286,8 +1462,73 @@ void MainFrame::UpdatePreviewDisplay() {
     // rendering it half as tall as wide at any zoom level.
     bool squash = interlace_scale_check_->GetValue() && last_preview_->lace;
     preview_view_->SetVerticalSquash(squash ? 0.5 : 1.0);
-    preview_view_->SetImage(img);
+    // The same size as the picture shown before keeps its zoom and position: a new result, another
+    // map of the same frame, or the original lands exactly where the eye was.
+    preview_view_->SetImage(img, true);
+}
+
+void MainFrame::ScheduleAutoPreview(int delay_ms) {
+    if (handling_result_) return;
+    if (!params_->IsAutoPreviewEnabled() || params_->IsAnimationEnabled() || input_path_.IsEmpty()) {
+        auto_preview_timer_.Stop();  // switched off (or no longer applicable) while a conversion was pending
+        return;
+    }
+    auto_preview_timer_.StartOnce(delay_ms);  // restarts a running pause: it is the pause since the LAST change
+}
+
+void MainFrame::OnAutoPreviewTimer(wxTimerEvent&) {
+    if (!params_->IsAutoPreviewEnabled() || params_->IsAnimationEnabled() || input_path_.IsEmpty()) return;
+    if (job_.IsRunning() && IsExportJob(job_kind_)) {  // never in the way of a save: try again later, silently
+        auto_preview_timer_.StartOnce(1000);
+        return;
+    }
+    RunConversion();
+}
+
+void MainFrame::UpdateZoomLabels() {
+    if (source_zoom_label_) source_zoom_label_->SetLabel(wxString::Format("%d%%", source_view_->GetZoomPercent()));
     if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
+}
+
+void MainFrame::OnViewChanged(ImageView* origin, bool by_user) {
+    UpdateZoomLabels();
+    if (!by_user || syncing_views_) return;
+    link_leader_ = origin;
+    if (link_views_check_->GetValue()) SyncLinkedView(origin);
+}
+
+void MainFrame::SyncLinkedView(ImageView* leader) {
+    if (!link_views_check_->GetValue() || !preview_mapping_ || !leader) return;
+    if (!source_view_->HasImage() || !preview_view_->HasImage()) return;
+    const bool from_source = leader == source_view_;
+    ImageView* follower = from_source ? preview_view_ : source_view_;
+
+    const ImageView::View lead = leader->GetView();
+    ImageView::View view;
+    view.fit = lead.fit;  // fit follows fit: "show everything" means the whole picture in each view
+    if (!lead.fit) {
+        const aic::CanvasMapping& m = *preview_mapping_;
+        const aic::CanvasPoint center = from_source ? m.to_canvas({lead.center_x, lead.center_y})
+                                                    : m.to_source({lead.center_x, lead.center_y});
+        view.center_x = center.x;
+        view.center_y = center.y;
+        view.zoom = from_source ? m.zoom_to_canvas(lead.zoom) : m.zoom_to_source(lead.zoom);
+    }
+    syncing_views_ = true;
+    follower->SetView(view);
+    syncing_views_ = false;
+    UpdateZoomLabels();
+}
+
+void MainFrame::ToggleOriginalView() {
+    const int original = static_cast<int>(preview_mode_->GetCount()) - 1;
+    if (preview_mode_->GetSelection() == original) {
+        preview_mode_->SetSelection(mode_before_original_);
+    } else {
+        mode_before_original_ = preview_mode_->GetSelection();
+        preview_mode_->SetSelection(original);
+    }
+    UpdatePreviewDisplay();
 }
 
 void MainFrame::SetStatus(const wxString& text) { status_label_->SetLabel(text); }

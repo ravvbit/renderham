@@ -5,6 +5,7 @@
 // that just want the whole public API without picking individual headers.
 
 #include "aic/anim_writer.hpp"
+#include "aic/canvas_mapping.hpp"
 #include "aic/color_space.hpp"
 #include "aic/crop.hpp"
 #include "aic/dither.hpp"
@@ -18,6 +19,7 @@
 #include "aic/palette_io.hpp"
 #include "aic/pipeline.hpp"
 #include "aic/quality_metrics.hpp"
+#include "aic/quality_profile.hpp"
 #include "aic/registry.hpp"
 #include "aic/resize.hpp"
 #include "aic/sequence.hpp"

@@ -2,10 +2,12 @@
 // Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
 #include "ParameterPanel.hpp"
 
+#include "FileFilters.hpp"
 #include "GuiIcons.hpp"
 #include "IconUtil.hpp"
 
 #include <wx/config.h>
+#include <wx/filefn.h>
 #include <wx/intl.h>
 #include <wx/settings.h>
 #include <wx/statline.h>
@@ -13,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <iterator>
 
 namespace {
 
@@ -23,6 +26,17 @@ wxArrayString RegistryNames(const std::vector<std::string>& names) {
 }
 
 wxString FormatFloat(float v) { return wxString::Format("%.2f", v); }
+
+// The name of a quality profile as shown in the choice. The library's names are English only; each
+// is spelled out here so the translation tooling sees it.
+wxString QualityProfileLabel(aic::QualityProfile id) {
+    switch (id) {
+        case aic::QualityProfile::Fast: return _("Fast");
+        case aic::QualityProfile::Standard: return _("Standard");
+        case aic::QualityProfile::Best: return _("Best quality");
+    }
+    return wxString();
+}
 
 }  // namespace
 
@@ -35,6 +49,44 @@ constexpr int kAnimFpsChoices[] = {60, 30, 20, 15, 12, 10, 6, 5, 3, 2, 1};
 constexpr int kDefaultAnimFpsIndex = 1;
 
 }  // namespace
+
+class ParameterPanel::ChangeWatcher : public wxEventFilter {
+public:
+    explicit ChangeWatcher(ParameterPanel* panel) : panel_(panel) { wxEvtHandler::AddFilter(this); }
+    ~ChangeWatcher() override { wxEvtHandler::RemoveFilter(this); }
+
+    int FilterEvent(wxEvent& event) override {
+        if (!event.IsCommandEvent()) return Event_Skip;
+        // The events a control sends when its value was changed by the user. Buttons are not among
+        // them: what a button does to the settings reports itself (see NotifyOptionsChanged).
+        const wxEventType type = event.GetEventType();
+        if (type != wxEVT_CHECKBOX && type != wxEVT_RADIOBUTTON && type != wxEVT_RADIOBOX && type != wxEVT_CHOICE &&
+            type != wxEVT_COMBOBOX && type != wxEVT_SLIDER && type != wxEVT_SPINCTRL &&
+            type != wxEVT_SPINCTRLDOUBLE && type != wxEVT_COLOURPICKER_CHANGED)
+            return Event_Skip;
+        const auto* source = wxDynamicCast(event.GetEventObject(), wxWindow);
+        if (source && panel_->IsDescendant(const_cast<wxWindow*>(source)) && panel_->AffectsSinglePreview(source))
+            panel_->NotifyOptionsChanged();
+        return Event_Skip;  // never in the way of the normal handling
+    }
+
+private:
+    ParameterPanel* panel_;
+};
+
+ParameterPanel::~ParameterPanel() = default;
+
+void ParameterPanel::NotifyOptionsChanged() {
+    if (options_changed_cb_) options_changed_cb_();
+}
+
+bool ParameterPanel::AffectsSinglePreview(const wxWindow* control) const {
+    // Animation and export settings change nothing about a single preview; neither does the unit
+    // of the crop numbers (the crop itself reports through NotifyCropChanged).
+    const wxWindow* const unrelated[] = {animation_enable_, keyframe_choice_, frames_per_segment_, anim_speed_,
+                                         output_mode_,      crop_unit_px_,    crop_unit_pct_,      compress_};
+    return std::find(std::begin(unrelated), std::end(unrelated), control) == std::end(unrelated);
+}
 
 ParameterPanel::ParameterPanel(wxWindow* parent)
     : wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL | wxHSCROLL | wxTAB_TRAVERSAL) {
@@ -96,6 +148,7 @@ ParameterPanel::ParameterPanel(wxWindow* parent)
 
     UpdateCropControlsEnabled();
     UpdateCustomResolutionEnabled();
+    change_watcher_ = std::make_unique<ChangeWatcher>(this);
 }
 
 int ParameterPanel::NaturalHeight() const {
@@ -244,7 +297,18 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
                                                  MakeMaskIcon(kIconPingPong, kGuiIconSize, icon_color));
     SetMaskIcon(preview_pingpong_, kIconPingPong, kGuiIconSize);
     preview_pingpong_->SetToolTip(_("Back and forth: play forwards, then backwards, and so on"));
+    // Next to the button it belongs to: the single-image preview is what it repeats. A toggle
+    // button with a symbol like the two next to it - a checkbox with words made the box wider
+    // than its column in German, which squeezed the right-hand column out of the window.
+    auto_preview_ = new wxBitmapToggleButton(preview_box->GetStaticBox(), wxID_ANY,
+                                             MakeMaskIcon(kIconAutoPreview, kGuiIconSize, icon_color));
+    SetMaskIcon(auto_preview_, kIconAutoPreview, kGuiIconSize);
+    auto_preview_->SetToolTip(
+        _("Auto preview: convert again by itself whenever a setting changes, after a short pause without "
+          "further changes (the newest request wins; a conversion that is still running is replaced). "
+          "Not available for animations."));
     preview_box->Add(play_preview_btn_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
+    preview_box->Add(auto_preview_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     preview_box->Add(preview_loop_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     preview_box->Add(preview_pingpong_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     box->Add(preview_box, 0, wxEXPAND | wxALL, 4);
@@ -256,6 +320,8 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
     remove_keyframe_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnRemoveKeyframe, this);
     keyframe_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnKeyframeSelected, this);
     play_preview_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnPlayPreviewClicked, this);
+    // Switching it on starts a preview, switching it off cancels a pending one: the frame decides.
+    auto_preview_->Bind(wxEVT_TOGGLEBUTTON, [this](wxCommandEvent&) { NotifyOptionsChanged(); });
     frames_per_segment_->Bind(wxEVT_SPINCTRL, [this](wxCommandEvent&) {
         if (animation_composition_changed_cb_) animation_composition_changed_cb_();
     });
@@ -316,6 +382,27 @@ void ParameterPanel::BuildColorBox(wxSizer* parent_sizer) {
     // instead of one control per row: this box sets the height of the whole
     // right-hand column and with it the window, and stacking every new
     // control grew the window past what a 1080p screen can show.
+    // The quality profile takes a single line, label and choice side by side, for the same reason.
+    auto* profile_row = new wxBoxSizer(wxHORIZONTAL);
+    auto* profile_label = new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Quality profile"));
+    profile_choice_ = new wxChoice(box->GetStaticBox(), wxID_ANY);
+    for (const aic::QualityProfileInfo& profile : aic::quality_profiles())
+        profile_choice_->Append(QualityProfileLabel(profile.id));
+    profile_choice_->Append(_("Custom"));
+    const wxString profile_tip =
+        _("Sets the palette quantizer, the refinement passes and the lookahead below in one go.\n"
+          "Fast: one refinement pass. About the same quality as Standard, in roughly a quarter less time.\n"
+          "Standard: the default.\n"
+          "Best quality: 8 passes and a lookahead of 4 pixels. About 5 percent less error on typical "
+          "photographs, but it takes roughly 7 times as long.\n"
+          "Changing one of those three settings by hand switches this to Custom. Greyed out while the "
+          "palette is locked, as the quantizer and the passes have no effect then.");
+    profile_label->SetToolTip(profile_tip);
+    profile_choice_->SetToolTip(profile_tip);
+    profile_row->Add(profile_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+    profile_row->Add(profile_choice_, 1, wxALIGN_CENTER_VERTICAL);
+    box->Add(profile_row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 4);  // no bottom gap: the grid below has its own
+
     auto* dither_grid = new wxFlexGridSizer(2, 2, 4, 8);
     dither_grid->AddGrowableCol(0, 1);
     dither_grid->AddGrowableCol(1, 1);
@@ -402,6 +489,10 @@ void ParameterPanel::BuildColorBox(wxSizer* parent_sizer) {
     parent_sizer->Add(box, 0, wxEXPAND | wxBOTTOM, 8);
 
     palette_iterations_->Bind(wxEVT_SLIDER, &ParameterPanel::OnPaletteIterationsChanged, this);
+    profile_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnProfileChosen, this);
+    quantizer_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnQualitySettingChanged, this);
+    lookahead_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnQualitySettingChanged, this);
+    SyncProfileChoice();
     chroma_weight_->Bind(wxEVT_SLIDER, &ParameterPanel::OnChromaWeightChanged, this);
     dither_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnDitherChoiceChanged, this);
     dither_strength_->Bind(wxEVT_SLIDER, &ParameterPanel::OnDitherStrengthChanged, this);
@@ -482,7 +573,6 @@ void ParameterPanel::BuildPaletteBox(wxSizer* parent_sizer) {
     // it something to actually lock onto - see UpdatePaletteControlsEnabled.
     lock_palette_ = new wxCheckBox(box->GetStaticBox(), wxID_ANY, _("Lock current palette"));
     lock_palette_->Enable(false);
-    box->Add(lock_palette_, 0, wxALL, 4);
 
     // All 16 palette entries as always-editable swatches, kept in sync
     // with whatever the current palette actually is (see
@@ -494,7 +584,14 @@ void ParameterPanel::BuildPaletteBox(wxSizer* parent_sizer) {
     // as-is); under "Lock color 0" only picker 0's edits matter;
     // otherwise they're purely informational until overwritten by the
     // next generated/loaded palette.
-    box->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Current palette")), 0, wxLEFT | wxTOP, 4);
+    // The lock shares the swatches' caption row: it is about exactly this palette, and the row it used
+    // to have of its own would grow the column that sets the window height (see BuildColorBox).
+    auto* palette_head = new wxBoxSizer(wxHORIZONTAL);
+    palette_head->Add(new wxStaticText(box->GetStaticBox(), wxID_ANY, _("Current palette")), 0,
+                      wxALIGN_CENTER_VERTICAL);
+    palette_head->AddStretchSpacer(1);
+    palette_head->Add(lock_palette_, 0, wxALIGN_CENTER_VERTICAL);
+    box->Add(palette_head, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 4);
     auto* color_grid = new wxGridSizer(2, 8, 3, 3);
     for (int i = 0; i < 16; ++i) {
         color_picker_[static_cast<size_t>(i)] =
@@ -595,6 +692,7 @@ void ParameterPanel::NotifyCropChanged() {
         if (rect) crop_keyframes_[static_cast<size_t>(sel)] = *rect;
     }
     if (crop_changed_cb_) crop_changed_cb_();
+    NotifyOptionsChanged();
 }
 
 void ParameterPanel::OnResolutionPresetChanged(wxCommandEvent&) { UpdateCustomResolutionEnabled(); }
@@ -602,6 +700,51 @@ void ParameterPanel::OnResolutionPresetChanged(wxCommandEvent&) { UpdateCustomRe
 void ParameterPanel::OnPaletteIterationsChanged(wxCommandEvent&) {
     palette_iterations_label_->SetLabel(
         wxString::Format(_("Refinement: %d passes"), palette_iterations_->GetValue()));
+    SyncProfileChoice();
+}
+
+void ParameterPanel::OnQualitySettingChanged(wxCommandEvent&) { SyncProfileChoice(); }
+
+void ParameterPanel::OnProfileChosen(wxCommandEvent&) {
+    const auto& profiles = aic::quality_profiles();
+    const int selection = profile_choice_->GetSelection();
+    if (selection >= 0 && static_cast<size_t>(selection) < profiles.size())
+        ApplyQualityProfile(profiles[static_cast<size_t>(selection)]);
+    // "Custom" changes nothing; either way the choice shows what the three controls now add up to.
+    SyncProfileChoice();
+}
+
+void ParameterPanel::ApplyQualityProfile(const aic::QualityProfileInfo& profile) {
+    aic::ConversionOptions options;
+    aic::apply_quality_profile(profile, &options);
+
+    // A quantizer this build does not have (cannot happen with the built-in profiles) leaves the choice alone.
+    quantizer_choice_->SetStringSelection(wxString::FromUTF8(options.quantizer_name.c_str()));
+
+    const int passes = std::clamp(options.palette_refinement_iterations, palette_iterations_->GetMin(),
+                                  palette_iterations_->GetMax());
+    palette_iterations_->SetValue(passes);
+    palette_iterations_label_->SetLabel(wxString::Format(_("Refinement: %d passes"), passes));
+
+    // The choice lists "off" and then 2, 3 and 4 pixels; a lookahead of 0 or 1 means off.
+    const int lookahead = std::clamp(options.lookahead, 1, static_cast<int>(lookahead_choice_->GetCount()));
+    lookahead_choice_->SetSelection(lookahead - 1);
+}
+
+void ParameterPanel::SyncProfileChoice() {
+    aic::ConversionOptions options;  // everything a profile does not touch stays at the defaults
+    options.quantizer_name = quantizer_choice_->GetStringSelection().ToStdString();
+    options.palette_refinement_iterations = palette_iterations_->GetValue();
+    options.lookahead = lookahead_choice_->GetSelection() + 1;
+
+    const std::optional<aic::QualityProfile> match = aic::matching_quality_profile(options);
+    const auto& profiles = aic::quality_profiles();
+    int index = static_cast<int>(profiles.size());  // "Custom"
+    if (match) {
+        for (size_t i = 0; i < profiles.size(); ++i)
+            if (profiles[i].id == *match) index = static_cast<int>(i);
+    }
+    profile_choice_->SetSelection(index);
 }
 
 void ParameterPanel::OnChromaWeightChanged(wxCommandEvent&) {
@@ -670,11 +813,11 @@ void ParameterPanel::OnResetColorCorrection(wxCommandEvent&) {
     contrast_label_->SetLabel(wxString::Format(_("Contrast: %s"), FormatFloat(1.f)));
     gamma_label_->SetLabel(wxString::Format(_("Gamma: %s"), FormatFloat(1.f)));
     saturation_label_->SetLabel(wxString::Format(_("Saturation: %s"), FormatFloat(1.f)));
+    NotifyOptionsChanged();  // the sliders moved without an event
 }
 
 void ParameterPanel::OnLoadPalette(wxCommandEvent&) {
-    wxFileDialog dlg(this, _("Load Palette"), "", "", _("Amiga IFF ILBM (*.iff)|*.iff"),
-                      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    wxFileDialog dlg(this, _("Load Palette"), "", "", gui::PaletteLoadWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dlg.ShowModal() != wxID_OK) return;
 
     aic::Palette loaded;
@@ -686,13 +829,22 @@ void ParameterPanel::OnLoadPalette(wxCommandEvent&) {
     reference_palette_ = loaded;
     PopulateColorPickers(loaded);
     UpdatePaletteControlsEnabled();
+    NotifyOptionsChanged();
 }
 
 void ParameterPanel::OnSavePalette(wxCommandEvent&) {
     if (!reference_palette_) return;  // button is disabled whenever this would be empty
-    wxFileDialog dlg(this, _("Save Palette As"), "", "", _("Amiga IFF ILBM (*.iff)|*.iff"),
+    // One filter per format. The extension of the name typed decides how the file is written (as on
+    // the command line); a name without one gets the extension of the selected filter.
+    wxFileDialog dlg(this, _("Save Palette As"), "", "", gui::PaletteSaveWildcard(),
                       wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (dlg.ShowModal() != wxID_OK) return;
+    const wxString path = gui::PaletteSavePath(dlg.GetPath(), dlg.GetFilterIndex());
+    // The dialog only asked about the name as typed; with an extension added, the file may be one that exists.
+    if (path != dlg.GetPath() && wxFileExists(path) &&
+        wxMessageBox(wxString::Format(_("%s already exists. Replace it?"), path), _("Save Palette As"),
+                     wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION, this) != wxYES)
+        return;
 
     // Built from the pickers' current colors, not the stored snapshot -
     // saves whatever is actually shown/edited right now, consistent
@@ -709,7 +861,7 @@ void ParameterPanel::OnSavePalette(wxCommandEvent&) {
     }
 
     std::string error;
-    if (!aic::save_palette(current, dlg.GetPath().ToStdString(), &error)) {
+    if (!aic::save_palette(current, path.ToStdString(), &error)) {
         wxMessageBox(wxString::Format(_("Failed to save palette: %s"), error), _("Error"), wxOK | wxICON_ERROR, this);
     }
 }
@@ -729,6 +881,7 @@ void ParameterPanel::UpdatePaletteControlsEnabled() {
     // it still applies to whichever palette (locked or not) ends up in
     // effect.
     bool locked = lock_palette_->GetValue();
+    profile_choice_->Enable(!locked);
     quantizer_choice_->Enable(!locked);
     importance_choice_->Enable(!locked);
     palette_iterations_->Enable(!locked);
@@ -772,6 +925,7 @@ void ParameterPanel::UpdateKeyframeControlsEnabled() {
     frames_per_segment_->Enable(animation_enable_->GetValue());
     anim_speed_->Enable(animation_enable_->GetValue());
     output_mode_->Enable(animation_enable_->GetValue());
+    auto_preview_->Enable(!animation_enable_->GetValue());  // repeats the single-image preview
     preview_loop_->Enable(animation_enable_->GetValue());
     preview_pingpong_->Enable(animation_enable_->GetValue());
     // With Animation off, this button takes over the former standalone
@@ -1139,6 +1293,7 @@ void ParameterPanel::LoadDefaults() {
         palette_iterations_->SetValue(static_cast<int>(v));
         palette_iterations_label_->SetLabel(wxString::Format(_("Refinement: %d passes"), static_cast<int>(v)));
     }
+    SyncProfileChoice();  // the profile is not stored itself: it follows from the three settings just read
     if (cfg->Read("Defaults/ChromaWeight", &v)) {
         chroma_weight_->SetValue(static_cast<int>(v));
         chroma_weight_label_->SetLabel(
@@ -1170,6 +1325,7 @@ void ParameterPanel::LoadDefaults() {
     }
 
     if (cfg->Read("Defaults/Compress", &b)) compress_->SetValue(b);
+    if (cfg->Read("Defaults/AutoPreview", &b)) auto_preview_->SetValue(b);
     if (cfg->Read("Defaults/LaceMode", &v) && v >= 0 && v <= 2) lace_mode_->SetSelection(static_cast<int>(v));
 }
 
@@ -1206,6 +1362,7 @@ void ParameterPanel::SaveAsDefaults() const {
         cfg->Write("Defaults/FixColor0B", static_cast<long>(c.Blue()));
     }
     cfg->Write("Defaults/Compress", compress_->GetValue());
+    cfg->Write("Defaults/AutoPreview", auto_preview_->GetValue());
     cfg->Write("Defaults/LaceMode", static_cast<long>(lace_mode_->GetSelection()));
     cfg->Flush();
 }
