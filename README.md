@@ -380,11 +380,13 @@ all three packages use them.
 ### Windows and macOS
 
 `.github/workflows/windows-macos.yml` builds renderHAM (library, command-line tool and GUI) and runs
-the whole test suite on **Windows** (MinGW-w64 from MSYS2), on **macOS with Apple Silicon** and on
-**macOS with an Intel processor**, on every push and pull request. That shows the encoder gives the
-same results on those systems and that the GUI compiles and links there. It does **not** start the
-GUI: nobody has used renderHAMgui on Windows or macOS yet, so expect rough edges (bug reports are
-welcome). No Windows or macOS programs are published yet.
+the whole test suite on **Windows** (MinGW-w64 from MSYS2) and on **macOS** (a universal build: one
+program for Intel Macs and for Apple Silicon), on every push and pull request. That shows the
+encoder gives the same results on those systems and that the GUI compiles and links there. On macOS
+the tests run on an Intel machine, so the Apple Silicon half of the program is compiled and linked
+but not run in CI. The workflow does **not** start the GUI: nobody has used renderHAMgui on Windows
+or macOS yet, so expect rough edges (bug reports are welcome). No Windows or macOS programs are
+published yet.
 
 What the code does for those systems: file names with non-ASCII characters work (the library takes
 UTF-8 paths and hands Windows what it expects; the command-line tool reads its arguments as UTF-16
@@ -396,15 +398,17 @@ To build by hand, follow the steps of the workflow file:
 * **Windows:** install [MSYS2](https://www.msys2.org), open its *UCRT64* shell and run
   `pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,gettext-tools,wxwidgets3.2-msw}`, then
   `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build`. The programs
-  find their DLLs in MSYS2's `ucrt64/bin` folder; a package that carries them along is still to come.
+  need the DLLs from MSYS2's `ucrt64/bin` folder (the UCRT64 shell has it on its `PATH`); a package
+  that carries them along is still to come.
   The MinGW-w64 compiler has to use the *posix* thread model (MSYS2's does), because the animation
   renderer uses `std::thread`.
 * **macOS:** install Xcode's command-line tools, CMake, Ninja and gettext (for example with
-  Homebrew) and build wxWidgets 3.2 for your processor; the workflow does that from the source
-  archive as a static library (`macos` job, step "Build wxWidgets") and caches the result, because
-  Homebrew has no wxWidgets 3.2 package for Intel Macs. Then configure with
-  `-DwxWidgets_CONFIG_EXECUTABLE=<prefix>/bin/wx-config` and build as usual. The result is
-  `build/tools/renderhamgui/renderHAMgui.app`.
+  Homebrew) and build wxWidgets 3.2 as a static library; the workflow does that from the source
+  archive (`macos` job, step "Build wxWidgets") with `--enable-universal_binary=x86_64,arm64`, and
+  caches the result, because Homebrew has no wxWidgets 3.2 package for Intel Macs. Then configure
+  with `-DwxWidgets_CONFIG_EXECUTABLE=<prefix>/bin/wx-config` (and
+  `-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"` for a universal build) and build as usual. The result
+  is `build/tools/renderhamgui/renderHAMgui.app`.
 
 Programs built this way are not signed. Windows may warn about an unknown publisher (SmartScreen),
 and macOS refuses to open an unsigned app by double-click the first time (open it through
