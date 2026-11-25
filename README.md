@@ -26,7 +26,7 @@ enlarged 2× for viewing.*
 
 ### The short version
 
-renderHAM takes an ordinary image (PNG, JPEG, BMP, TGA, …) and converts it to a file that an
+renderHAM takes an ordinary image (PNG, JPEG, BMP, TGA, GIF, PSD, PPM, PGM) and converts it to a file that an
 Amiga computer can display natively: an **IFF ILBM picture in HAM6 mode**. If you give it
 several crop windows over one image, it can also generate a smooth pan-and-zoom animation
 (the "Ken Burns effect") as a series of pictures or as a single Amiga **IFF ANIM** file.
@@ -135,6 +135,9 @@ render pan frames with `--crop` from a script).
 
 * Source image on the left, HAM6 result on the right, each with its own zoom (`Ctrl+=`, `Ctrl+-`,
   `Ctrl+9` fit, `Ctrl+0` 100 %), always drawn with hard pixel edges.
+* Open an image with the button, with drag and drop, or from the **Recent** list next to it (the last
+  nine images; `Ctrl+Shift+O`, then a digit key). Readable formats: PNG, JPEG, BMP, TGA, GIF (first
+  frame), Photoshop PSD (the flattened picture) and binary PPM/PGM.
 * Conversions run in the background with a progress display; `Esc` cancels.
 * Settings can be saved as your defaults. The interface is in English by default; a German
   translation can be chosen in the Settings dialog or with `--lang de`.
@@ -142,6 +145,7 @@ render pan frames with `--crop` from a script).
 | Shortcut | Action |
 |---|---|
 | `Ctrl+O` | Open an image |
+| `Ctrl+Shift+O` | Open one of the recent images |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save to the target directory / save with a file picker |
 | `F5` | Convert / play preview |
 | `F6` | Cycle the result view: preview → HAM map → error map |

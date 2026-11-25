@@ -16,6 +16,20 @@
 
 namespace aic {
 
+const std::vector<ImageFormat>& supported_image_formats() {
+    static const std::vector<ImageFormat> formats = {
+        {"PNG", {"png"}, "image/png"},
+        {"JPEG", {"jpg", "jpeg"}, "image/jpeg"},
+        {"BMP", {"bmp"}, "image/bmp"},
+        {"TGA", {"tga"}, "image/x-tga"},
+        {"GIF (first frame)", {"gif"}, "image/gif"},
+        {"Photoshop PSD (flattened picture)", {"psd"}, "image/vnd.adobe.photoshop"},
+        {"PPM (binary)", {"ppm"}, "image/x-portable-pixmap"},
+        {"PGM (binary)", {"pgm"}, "image/x-portable-graymap"},
+    };
+    return formats;
+}
+
 Image::Image(int width, int height)
     : width_(width), height_(height), pixels_(static_cast<size_t>(width) * height) {}
 

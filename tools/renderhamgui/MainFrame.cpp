@@ -10,6 +10,7 @@
 #include <wx/display.h>
 #include <wx/settings.h>
 #include <wx/dnd.h>
+#include <wx/filefn.h>
 #include <wx/filename.h>
 #include <wx/intl.h>
 #include <wx/stdpaths.h>
@@ -58,6 +59,11 @@ const int ID_FLIP_HORIZONTAL = wxID_HIGHEST + 18;
 const int ID_FLIP_VERTICAL = wxID_HIGHEST + 19;
 const int ID_CANCEL_JOB = wxID_HIGHEST + 20;
 const int ID_JOB_TIMER = wxID_HIGHEST + 21;
+const int ID_RECENT_BTN = wxID_HIGHEST + 22;   // the button, and Ctrl+Shift+O
+const int ID_CLEAR_RECENT = wxID_HIGHEST + 23;
+// The entries of the Recent menu take this id and the following ones (wxFileHistory numbers them).
+const int ID_RECENT_FIRST = wxID_HIGHEST + 30;
+const int kMaxRecentFiles = 9;  // the menu numbers them 1-9, so a digit key picks one
 
 // aic::Image (float RGB) -> wxImage (byte RGB). wxImage takes ownership
 // of a malloc'd buffer when static_data=false (its default), matching
@@ -75,6 +81,52 @@ wxImage ToWxImage(const aic::Image& img) {
         }
     }
     return wxImage(w, h, buf, false);
+}
+
+// The "Open" dialog's filter, built from the library's list of readable formats (so the dialog,
+// the desktop entry and the loader cannot drift apart): "Images (*.png;...)|<patterns>|All Files|*".
+// GTK compares the patterns case-sensitively, so there every letter is spelled in both cases
+// ("*.[jJ][pP][gG]"); without that a camera's IMG_0001.JPG would not show up. The other
+// platforms' dialogs ignore case themselves and do not know the bracket syntax.
+wxString ImageFileWildcard() {
+    wxString shown, patterns;
+    for (const aic::ImageFormat& format : aic::supported_image_formats()) {
+        for (const std::string& ext : format.extensions) {
+            const wxString dotted = "*." + wxString::FromUTF8(ext.c_str());
+            wxString pattern = dotted;
+#ifdef __WXGTK__
+            pattern = "*.";
+            for (const char c : ext) {
+                const wxString lower(1, static_cast<wxChar>(c));
+                const wxString upper = lower.Upper();
+                pattern += "[" + lower + upper + "]";
+            }
+#endif
+            if (!shown.empty()) { shown += ";"; patterns += ";"; }
+            shown += dotted;
+            patterns += pattern;
+        }
+    }
+    return wxString::Format("%s (%s)|%s|%s|%s", _("Images"), shown, patterns, _("All Files"),
+                            wxFileSelectorDefaultWildcardStr);
+}
+
+// "&1 photo.jpg  -  /home/olli/Pictures": file name first (what one scans for), then the folder,
+// shortened in the middle when it is long. The digit is the menu mnemonic, so pressing 1-9 picks
+// an entry. '&' in a name must be doubled or the menu would take it for a mnemonic.
+wxString RecentMenuLabel(size_t index, const wxString& path) {
+    auto escaped = [](wxString text) {
+        text.Replace("&", "&&");
+        return text;
+    };
+    const wxFileName name(path);
+    wxString folder = name.GetPath();
+    constexpr size_t kMaxFolderChars = 48;
+    if (folder.length() > kMaxFolderChars)
+        folder = folder.Left(20) + wxString::FromUTF8("\xE2\x80\xA6") + folder.Right(27);
+    wxString label = wxString::Format("&%d %s", static_cast<int>(index) + 1, escaped(name.GetFullName()));
+    if (!folder.empty()) label += "  -  " + escaped(folder);
+    return label;
 }
 
 // Accepts a single dropped file and forwards its path; used for both the
@@ -164,13 +216,20 @@ void MainFrame::Init() {
     auto* toolbar_row = new wxBoxSizer(wxHORIZONTAL);
     auto* open_btn = new wxButton(this, ID_OPEN_BTN, _("Open..."));
     open_btn->SetToolTip(_("Open an image (Ctrl+O)"));
-    input_label_ = new wxStaticText(this, wxID_ANY, _("(no file loaded - or drag an image here)"));
+    recent_btn_ = new wxButton(this, ID_RECENT_BTN, _("Recent"));
+    recent_btn_->SetToolTip(_("Open one of the images opened before (Ctrl+Shift+O)"));
+    // Ellipsized in the middle (the end of a file name matters: its extension), so a long name never
+    // pushes the buttons next to it out of the window; the tooltip holds the full path.
+    input_label_ = new wxStaticText(this, wxID_ANY, _("(no file loaded - or drag an image here)"), wxDefaultPosition,
+                                     wxDefaultSize, wxST_ELLIPSIZE_MIDDLE);
+    input_label_->SetMinSize(wxSize(100, -1));
     target_dir_btn_ = new wxButton(this, ID_TARGET_DIR_BTN, _("Target directory..."));
     save_quick_btn_ = new wxButton(this, ID_SAVE_QUICK_BTN, _("Save"));
     save_quick_btn_->SetToolTip(_("Save to the target directory (Ctrl+S)"));
     save_as_btn_ = new wxButton(this, ID_SAVE_BTN, _("Save As..."));
     save_as_btn_->SetToolTip(_("Save with a file picker (Ctrl+Shift+S)"));
     toolbar_row->Add(open_btn, 0, wxALL, 4);
+    toolbar_row->Add(recent_btn_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
     toolbar_row->Add(input_label_, 1, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     toolbar_row->Add(target_dir_btn_, 0, wxALL, 4);
     toolbar_row->Add(save_quick_btn_, 0, wxALL, 4);
@@ -373,8 +432,24 @@ void MainFrame::Init() {
     }
     target_dir_ = cfg->Read("TargetDirectory", wxEmptyString);
     UpdateTargetDirTooltip();
+    // Only the storage (order, duplicates, size limit) comes from wxFileHistory; the menu is built in
+    // ShowRecentMenu, because the labels wxFileHistory makes show either the bare name or the whole path.
+    recent_files_ = std::make_unique<wxFileHistory>(kMaxRecentFiles, ID_RECENT_FIRST);
+    LoadRecentFiles();
 
     open_btn->Bind(wxEVT_BUTTON, &MainFrame::OnOpen, this);
+    // Button and Ctrl+Shift+O share the id (like Open); the entries (and "Clear list") are menu events.
+    Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { ShowRecentMenu(); }, ID_RECENT_BTN);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { ShowRecentMenu(); }, ID_RECENT_BTN);
+    Bind(wxEVT_MENU, &MainFrame::OnRecentFile, this, ID_RECENT_FIRST, ID_RECENT_FIRST + kMaxRecentFiles - 1);
+    Bind(
+        wxEVT_MENU,
+        [this](wxCommandEvent&) {
+            while (recent_files_->GetCount() > 0) recent_files_->RemoveFileFromHistory(0);
+            SaveRecentFiles();
+            SetStatus(_("List of recent images cleared"));
+        },
+        ID_CLEAR_RECENT);
     target_dir_btn_->Bind(wxEVT_BUTTON, &MainFrame::OnTargetDirectory, this);
     save_quick_btn_->Bind(wxEVT_BUTTON, &MainFrame::OnSaveQuick, this);
     save_as_btn_->Bind(wxEVT_BUTTON, &MainFrame::OnSaveAs, this);
@@ -446,7 +521,7 @@ void MainFrame::Init() {
     // K for "Keyframe", unclaimed by anything else here. Ctrl+Q for
     // Quit is the same universal convention as Ctrl+O/S, even though
     // the window's own close button/Alt+F4 already cover it.
-    wxAcceleratorEntry accel_entries[16];
+    wxAcceleratorEntry accel_entries[17];
     accel_entries[0].Set(wxACCEL_NORMAL, WXK_F5, ID_CONVERT);
     accel_entries[1].Set(wxACCEL_CTRL, static_cast<int>('='), ID_ZOOM_IN);
     accel_entries[2].Set(wxACCEL_CTRL, static_cast<int>('-'), ID_ZOOM_OUT);
@@ -463,7 +538,8 @@ void MainFrame::Init() {
     accel_entries[13].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('H'), ID_FLIP_HORIZONTAL);
     accel_entries[14].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('V'), ID_FLIP_VERTICAL);
     accel_entries[15].Set(wxACCEL_NORMAL, WXK_ESCAPE, ID_CANCEL_JOB);
-    SetAcceleratorTable(wxAcceleratorTable(16, accel_entries));
+    accel_entries[16].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('O'), ID_RECENT_BTN);
+    SetAcceleratorTable(wxAcceleratorTable(17, accel_entries));
 
     // Bidirectional crop <-> rubber-band sync (see the two methods'
     // comments) and drag-and-drop file loading, covering the frame
@@ -521,8 +597,7 @@ void MainFrame::ApplySourceTransform(const aic::ImageTransform& delta, const wxS
     last_preview_.reset();
     preview_view_->SetImage(wxImage());
     source_view_->SetImage(ToWxImage(*source_image_));
-    input_label_->SetLabel(wxString::Format(_("%s  (%dx%d)"), wxFileName(input_path_).GetFullName(),
-                                             source_image_->width(), source_image_->height()));
+    UpdateInputLabel();
     SyncCropOverlayFromParams();
     SetStatus(wxString::Format("%s - %dx%d", status_text, source_image_->width(), source_image_->height()));
     Layout();
@@ -536,16 +611,17 @@ void MainFrame::LoadImage(const wxString& path) {
     auto loaded = aic::Image::load(path.ToStdString(), &err, load_opts);
     if (!loaded) {
         wxMessageBox(wxString::Format(_("Failed to load: %s"), err), _("Error"), wxOK | wxICON_ERROR, this);
+        ForgetFile(path);  // no use offering a file again that cannot be read
         return;
     }
 
     input_path_ = path;
+    RememberFile(path);
     source_image_ = std::move(*loaded);
     source_transform_ = aic::ImageTransform{};  // a newly opened picture starts upright
     for (wxButton* b : transform_buttons_) b->Enable(true);
     last_preview_.reset();
-    input_label_->SetLabel(wxString::Format(_("%s  (%dx%d)"), wxFileName(path).GetFullName(),
-                                             source_image_->width(), source_image_->height()));
+    UpdateInputLabel();
     params_->SetSourceSize(source_image_->width(), source_image_->height());
     source_view_->SetImage(ToWxImage(*source_image_));
     preview_view_->SetImage(wxImage());
@@ -557,11 +633,90 @@ void MainFrame::LoadImage(const wxString& path) {
 
 void MainFrame::OnOpen(wxCommandEvent&) {
     if (RefuseWhileExporting()) return;  // before the dialog, not after the user picked a file
-    wxFileDialog dlg(this, _("Open Image"), "", "",
-                      _("Images (*.png;*.jpg;*.jpeg;*.bmp;*.tga)|*.png;*.jpg;*.jpeg;*.bmp;*.tga|All Files|*.*"),
-                      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    // Start where the last picture came from: the open one, else the most recent one of the list.
+    wxString start_dir;
+    if (!input_path_.empty()) start_dir = wxFileName(input_path_).GetPath();
+    else if (recent_files_->GetCount() > 0) start_dir = wxFileName(recent_files_->GetHistoryFile(0)).GetPath();
+    if (!start_dir.empty() && !wxFileName::DirExists(start_dir)) start_dir.clear();
+    wxFileDialog dlg(this, _("Open Image"), start_dir, "", ImageFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dlg.ShowModal() != wxID_OK) return;
     LoadImage(dlg.GetPath());
+}
+
+void MainFrame::UpdateInputLabel() {
+    if (!source_image_ || input_path_.empty()) return;
+    input_label_->SetLabel(wxString::Format(_("%s  (%dx%d)"), wxFileName(input_path_).GetFullName(),
+                                             source_image_->width(), source_image_->height()));
+    input_label_->SetToolTip(input_path_);
+}
+
+void MainFrame::LoadRecentFiles() {
+    wxConfigBase* cfg = wxConfig::Get();
+    const wxString previous = cfg->GetPath();
+    cfg->SetPath("/RecentFiles");
+    recent_files_->Load(*cfg);
+    cfg->SetPath(previous);
+}
+
+void MainFrame::SaveRecentFiles() {
+    wxConfigBase* cfg = wxConfig::Get();
+    const wxString previous = cfg->GetPath();
+    cfg->SetPath("/RecentFiles");
+    recent_files_->Save(*cfg);
+    cfg->SetPath(previous);
+    cfg->Flush();
+}
+
+void MainFrame::RememberFile(const wxString& path) {
+    wxFileName name(path);
+    name.MakeAbsolute();  // "renderHAMgui photo.jpg" must still find the file from another folder
+    recent_files_->AddFileToHistory(name.GetFullPath());
+    SaveRecentFiles();
+}
+
+void MainFrame::ForgetFile(const wxString& path) {
+    wxFileName name(path);
+    name.MakeAbsolute();
+    for (size_t i = recent_files_->GetCount(); i-- > 0;) {
+        if (recent_files_->GetHistoryFile(i) == name.GetFullPath()) recent_files_->RemoveFileFromHistory(i);
+    }
+    SaveRecentFiles();
+}
+
+void MainFrame::ShowRecentMenu() {
+    if (RefuseWhileExporting()) return;
+    // Entries whose file is gone are dropped now rather than offered and then refused.
+    bool pruned = false;
+    for (size_t i = recent_files_->GetCount(); i-- > 0;) {
+        if (!wxFileName::FileExists(recent_files_->GetHistoryFile(i))) {
+            recent_files_->RemoveFileFromHistory(i);
+            pruned = true;
+        }
+    }
+    if (pruned) SaveRecentFiles();
+
+    wxMenu menu;
+    if (recent_files_->GetCount() == 0) {
+        menu.Append(wxID_ANY, _("(no recent images)"))->Enable(false);
+    } else {
+        for (size_t i = 0; i < recent_files_->GetCount(); ++i)
+            menu.Append(ID_RECENT_FIRST + static_cast<int>(i), RecentMenuLabel(i, recent_files_->GetHistoryFile(i)));
+        menu.AppendSeparator();
+        menu.Append(ID_CLEAR_RECENT, _("Clear list"));
+    }
+    PopupMenu(&menu, recent_btn_->GetPosition() + wxPoint(0, recent_btn_->GetSize().GetHeight()));
+}
+
+void MainFrame::OnRecentFile(wxCommandEvent& event) {
+    const size_t index = static_cast<size_t>(event.GetId() - ID_RECENT_FIRST);
+    if (index >= recent_files_->GetCount()) return;
+    const wxString path = recent_files_->GetHistoryFile(index);
+    if (!wxFileName::FileExists(path)) {
+        wxMessageBox(wxString::Format(_("The file no longer exists: %s"), path), _("Error"), wxOK | wxICON_ERROR, this);
+        ForgetFile(path);
+        return;
+    }
+    LoadImage(path);
 }
 
 void MainFrame::UpdateSaveButtonLabels(bool animation_enabled) {

@@ -21,12 +21,30 @@ All notable changes to this project are documented here. The format follows
 - Desktop integration on Linux: menu entry, AppStream metadata and a placeholder icon in
   `packaging/linux/`, installed by `cmake --install`; the license texts are installed to
   `share/doc/renderham/`.
+- **Recent images** (GUI): a "Recent" button next to "Open..." (also `Ctrl+Shift+O`) lists the last nine
+  opened images, most recent first; a digit key picks one. The list is kept between sessions, files that
+  no longer exist are dropped when the menu opens, and "Clear list" empties it.
+- **More input formats**: GIF (first frame), Photoshop PSD (the flattened picture) and binary PPM/PGM can
+  now be opened from the file dialog and are named in the desktop entry (`MimeType=`) of the Linux
+  packages. The loader read them already; only the lists did not mention them. The new
+  `aic::supported_image_formats()` is the one list behind the Open dialog and the desktop entry, and
+  a test (`formats`) loads a sample of every listed format and checks that the desktop entry matches.
 
 ### Changed
 
+- The Open dialog starts in the folder of the open picture (or of the most recent one), and the file
+  name next to the buttons is shortened in the middle when it is too long (the tooltip shows the path).
+- "All Files" in the Open dialog uses the platform's "everything" wildcard (`*`), so files without an
+  extension show up there too.
 - README and `THIRD_PARTY_NOTICES.md` state the origin and license of the example photos (also the
   cat photo in the GUI screenshot) and which third-party libraries the AppImage and the Flatpak contain.
 - The README's project layout no longer mentions the removed development log.
+
+### Fixed
+
+- The Open dialog on Linux (GTK) hid files whose extension is not lower case, such as the `IMG_0001.JPG`
+  of many cameras: GTK matches the filter patterns case-sensitively. The patterns now accept every
+  spelling.
 
 ## [0.1.0] - 2026-11-22
 

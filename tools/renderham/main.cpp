@@ -25,7 +25,7 @@ void print_usage(const char* prog) {
     std::cout <<
         "Usage: " << prog << " -i <input> -o <output.iff> [options]\n\n"
         "Options:\n"
-        "  -i, --input <path>        Source image (PNG/JPEG/BMP/TGA/...)\n"
+        "  -i, --input <path>        Source image (PNG, JPEG, BMP, TGA, GIF, PSD, PPM, PGM)\n"
         "  -o, --output <path>       Output IFF ILBM (HAM6) file\n"
         "      --background <color>  Color that transparent areas of the source are blended\n"
         "                            over: R,G,B (0-255) or '#RRGGBB' (quote it in a shell;\n"
