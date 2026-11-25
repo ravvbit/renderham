@@ -62,6 +62,13 @@ const int ID_CANCEL_JOB = wxID_HIGHEST + 20;
 const int ID_JOB_TIMER = wxID_HIGHEST + 21;
 const int ID_RECENT_BTN = wxID_HIGHEST + 22;   // the button, and Ctrl+Shift+O
 const int ID_CLEAR_RECENT = wxID_HIGHEST + 23;
+const int ID_TOGGLE_ORIGINAL = wxID_HIGHEST + 24;
+const int ID_AUTO_PREVIEW_TIMER = wxID_HIGHEST + 25;
+// Pause after the last change of a setting before auto preview converts again: long enough to
+// finish a slider drag or a few key presses, short enough to feel like it follows. A newly
+// opened or turned picture does not need to wait for anything.
+const int kAutoPreviewPauseMs = 700;
+const int kAutoPreviewAfterLoadMs = 150;
 // The entries of the Recent menu take this id and the following ones (wxFileHistory numbers them).
 const int ID_RECENT_FIRST = wxID_HIGHEST + 30;
 const int kMaxRecentFiles = 9;  // the menu numbers them 1-9, so a digit key picks one
@@ -172,11 +179,12 @@ wxSizer* MainFrame::BuildPreviewHeader(const wxString& title, ImageView* view, w
     zoom_box->Add(zoom_label, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 4);
     header->Add(zoom_box, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 4);
 
-    auto update_label = [view, zoom_label] { zoom_label->SetLabel(wxString::Format("%d%%", view->GetZoomPercent())); };
-    zoom_out_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomOut(); update_label(); });
-    zoom_fit_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomToFit(); update_label(); });
-    zoom_actual_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomActual(); update_label(); });
-    zoom_in_btn->Bind(wxEVT_BUTTON, [view, update_label](wxCommandEvent&) { view->ZoomIn(); update_label(); });
+    // The percentage follows the view itself (see OnViewChanged), whoever zoomed it: these buttons,
+    // the wheel, the keyboard, or the other view when the two are linked.
+    zoom_out_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomOut(); });
+    zoom_fit_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomToFit(); });
+    zoom_actual_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomActual(); });
+    zoom_in_btn->Bind(wxEVT_BUTTON, [view](wxCommandEvent&) { view->ZoomIn(); });
 
     if (out_zoom_label) *out_zoom_label = zoom_label;
     return header;
@@ -224,7 +232,7 @@ void MainFrame::Init() {
     preview_view_->SetMinSize(wxSize(150, 100));
 
     auto* src_col = new wxBoxSizer(wxVERTICAL);
-    src_col->Add(BuildPreviewHeader(_("Source"), source_view_, nullptr), 0, wxEXPAND | wxBOTTOM, 2);
+    src_col->Add(BuildPreviewHeader(_("Source"), source_view_, &source_zoom_label_), 0, wxEXPAND | wxBOTTOM, 2);
 
     auto* prev_col = new wxBoxSizer(wxVERTICAL);
     prev_col->Add(BuildPreviewHeader(_("Amiga Preview (HAM6)"), preview_view_, &preview_zoom_label_), 0,
@@ -248,17 +256,21 @@ void MainFrame::Init() {
     // Which image the preview panel shows: the decoded HAM6 result, a map of
     // the HAM operation behind every pixel, or an error map (see
     // aic/ham_maps.hpp). Shares the checkbox's row so the header does not
-    // get taller; F6 cycles through the three.
+    // get taller; F6 cycles through the four.
     preview_mode_ = new wxChoice(this, wxID_ANY);
     preview_mode_->Append(_("Preview"));
     preview_mode_->Append(_("HAM map"));
     preview_mode_->Append(_("Error map"));
+    preview_mode_->Append(_("Original"));
     preview_mode_->SetSelection(0);
     preview_mode_->SetToolTip(
         _("What the preview shows: the decoded HAM6 result, a map of the HAM operation used for each pixel "
-          "(black = Select, red/green/blue = Modify R/G/B), or an error map (brightness = distance from the "
-          "source image, white = 0.10 OKLab or more). F6 cycles through the views. The error map is only "
-          "available for the single-frame preview, not while an animation plays."));
+          "(black = Select, red/green/blue = Modify R/G/B), an error map (brightness = distance from the "
+          "source image, white = 0.10 OKLab or more), or the original: the picture as the encoder received "
+          "it (cropped, scaled, color-corrected), at the size of the preview - the \"before\" to the HAM6 "
+          "\"after\", in the same place at the same zoom. F6 cycles through the views, F7 switches between "
+          "the original and what was shown before. The error map and the original are only available for "
+          "the single-frame preview, not while an animation plays."));
 
     int interlace_row_height =
         std::max(interlace_scale_check_->GetBestSize().GetHeight(), preview_mode_->GetBestSize().GetHeight());
@@ -289,6 +301,16 @@ void MainFrame::Init() {
             transform_row->Add(btn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 2);
             transform_buttons_.push_back(btn);
         }
+        // Right-aligned in the same row, which has room for it: the two views show the same part
+        // of the picture when this is on (see OnViewChanged).
+        link_views_check_ = new wxCheckBox(this, wxID_ANY, _("Link zoom and pan"));
+        link_views_check_->SetToolTip(
+            _("Zoom and pan the source and the preview together, so both always show the same part of the "
+              "picture - the crop box and the scaling are taken into account, so a detail is in the same "
+              "place in both views."));
+        link_views_check_->SetValue(wxConfig::Get()->ReadBool("View/LinkZoomPan", true));
+        transform_row->AddStretchSpacer(1);
+        transform_row->Add(link_views_check_, 0, wxALIGN_CENTER_VERTICAL);
         src_col->Add(transform_row, 0, wxEXPAND | wxBOTTOM, 2);
     }
 
@@ -433,10 +455,11 @@ void MainFrame::Init() {
     Bind(
         wxEVT_MENU,
         [this](wxCommandEvent&) {
-            preview_mode_->SetSelection((preview_mode_->GetSelection() + 1) % 3);
+            preview_mode_->SetSelection((preview_mode_->GetSelection() + 1) % static_cast<int>(preview_mode_->GetCount()));
             UpdatePreviewDisplay();
         },
         ID_CYCLE_VIEW);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { ToggleOriginalView(); }, ID_TOGGLE_ORIGINAL);
     about_btn->Bind(wxEVT_BUTTON, &MainFrame::OnAbout, this);
     // Buttons and keyboard shortcuts share the IDs, so one handler each.
     auto bind_transform = [this](int id, aic::ImageTransform delta, wxString text) {
@@ -467,23 +490,14 @@ void MainFrame::Init() {
     Bind(wxEVT_MENU, [this](wxCommandEvent&) { CancelRunningJob(); }, ID_CANCEL_JOB);
     job_timer_.SetOwner(this, ID_JOB_TIMER);
     Bind(wxEVT_TIMER, &MainFrame::OnJobTimer, this, ID_JOB_TIMER);
+    auto_preview_timer_.SetOwner(this, ID_AUTO_PREVIEW_TIMER);
+    Bind(wxEVT_TIMER, &MainFrame::OnAutoPreviewTimer, this, ID_AUTO_PREVIEW_TIMER);
 
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomIn();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_IN);
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomOut();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_OUT);
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomToFit();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_FIT);
-    Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        preview_view_->ZoomActual();
-        if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
-    }, ID_ZOOM_ACTUAL);
+    // The keys zoom the preview; with the views linked the source goes along.
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomIn(); }, ID_ZOOM_IN);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomOut(); }, ID_ZOOM_OUT);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomToFit(); }, ID_ZOOM_FIT);
+    Bind(wxEVT_MENU, [this](wxCommandEvent&) { preview_view_->ZoomActual(); }, ID_ZOOM_ACTUAL);
 
     // Chosen deliberately, not just "whatever's free": Ctrl+O/S/Shift+S
     // match the near-universal open/save/save-as convention every
@@ -494,7 +508,7 @@ void MainFrame::Init() {
     // K for "Keyframe", unclaimed by anything else here. Ctrl+Q for
     // Quit is the same universal convention as Ctrl+O/S, even though
     // the window's own close button/Alt+F4 already cover it.
-    wxAcceleratorEntry accel_entries[17];
+    wxAcceleratorEntry accel_entries[18];
     accel_entries[0].Set(wxACCEL_NORMAL, WXK_F5, ID_CONVERT);
     accel_entries[1].Set(wxACCEL_CTRL, static_cast<int>('='), ID_ZOOM_IN);
     accel_entries[2].Set(wxACCEL_CTRL, static_cast<int>('-'), ID_ZOOM_OUT);
@@ -512,7 +526,8 @@ void MainFrame::Init() {
     accel_entries[14].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('V'), ID_FLIP_VERTICAL);
     accel_entries[15].Set(wxACCEL_NORMAL, WXK_ESCAPE, ID_CANCEL_JOB);
     accel_entries[16].Set(wxACCEL_CTRL | wxACCEL_SHIFT, static_cast<int>('O'), ID_RECENT_BTN);
-    SetAcceleratorTable(wxAcceleratorTable(17, accel_entries));
+    accel_entries[17].Set(wxACCEL_NORMAL, WXK_F7, ID_TOGGLE_ORIGINAL);
+    SetAcceleratorTable(wxAcceleratorTable(18, accel_entries));
 
     // Bidirectional crop <-> rubber-band sync (see the two methods'
     // comments) and drag-and-drop file loading, covering the frame
@@ -529,6 +544,7 @@ void MainFrame::Init() {
         StopAnimationPreview();
     });
     params_->SetPlayPreviewToggledCallback([this] { OnPlayPreviewToggled(); });
+    params_->SetOptionsChangedCallback([this] { ScheduleAutoPreview(kAutoPreviewPauseMs); });
     params_->SetAnimationCompositionChangedCallback([this] { StopAnimationPreview(); });
     // A new speed takes effect at once, also in a preview that is already playing.
     params_->SetAnimationSpeedChangedCallback([this] {
@@ -541,6 +557,17 @@ void MainFrame::Init() {
     SetDropTarget(new FileDropTarget(load_cb));
     source_view_->SetDropTarget(new FileDropTarget(load_cb));
     preview_view_->SetDropTarget(new FileDropTarget(load_cb));
+
+    // Linked zoom and pan (see OnViewChanged). Last, so nothing above reports a view change into
+    // a frame that is not complete yet.
+    link_leader_ = source_view_;
+    source_view_->SetViewChangedCallback([this](bool by_user) { OnViewChanged(source_view_, by_user); });
+    preview_view_->SetViewChangedCallback([this](bool by_user) { OnViewChanged(preview_view_, by_user); });
+    link_views_check_->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent&) {
+        wxConfig::Get()->Write("View/LinkZoomPan", link_views_check_->GetValue());
+        wxConfig::Get()->Flush();
+        if (link_views_check_->GetValue()) SyncLinkedView(link_leader_);
+    });
 }
 
 aic::ConversionOptions MainFrame::MakeOptions() const {
@@ -568,12 +595,14 @@ void MainFrame::ApplySourceTransform(const aic::ImageTransform& delta, const wxS
 
     // The preview shows the old orientation; clear it like a new image would.
     last_preview_.reset();
+    preview_mapping_.reset();
     preview_view_->SetImage(wxImage());
     source_view_->SetImage(ToWxImage(*source_image_));
     UpdateInputLabel();
     SyncCropOverlayFromParams();
     SetStatus(wxString::Format("%s - %dx%d", status_text, source_image_->width(), source_image_->height()));
     Layout();
+    ScheduleAutoPreview(kAutoPreviewAfterLoadMs);
 }
 
 void MainFrame::LoadImage(const wxString& path) {
@@ -594,14 +623,15 @@ void MainFrame::LoadImage(const wxString& path) {
     source_transform_ = aic::ImageTransform{};  // a newly opened picture starts upright
     for (wxButton* b : transform_buttons_) b->Enable(true);
     last_preview_.reset();
+    preview_mapping_.reset();
     UpdateInputLabel();
     params_->SetSourceSize(source_image_->width(), source_image_->height());
     source_view_->SetImage(ToWxImage(*source_image_));
     preview_view_->SetImage(wxImage());
-    if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
     SyncCropOverlayFromParams();
     SetStatus(wxString::Format(_("Source: %dx%d"), source_image_->width(), source_image_->height()));
     Layout();
+    ScheduleAutoPreview(kAutoPreviewAfterLoadMs);
 }
 
 void MainFrame::OnOpen(wxCommandEvent&) {
@@ -834,6 +864,7 @@ void MainFrame::RunAnimationExport(const wxString& base_path) {
                     ctx.post([this, st, shown, count, n] {
                         st->display_pending = false;
                         last_preview_ = std::move(*shown);
+                        preview_mapping_.reset();  // each frame has its own crop box: no fixed mapping
                         UpdatePreviewDisplay();
                         SetStatus(wxString::Format(_("Generating animation: frame %d/%d..."), count,
                                                     static_cast<int>(n)));
@@ -991,6 +1022,7 @@ void MainFrame::StartAnimationPreview() {
             preview_playing_ = true;
             params_->SetPreviewPlaying(true);
             last_preview_ = preview_frames_[0];
+            preview_mapping_.reset();
             UpdatePreviewDisplay();
             // The tick follows the Playback speed setting - the same one an exported
             // Anim-File gets - so the preview is as fast as the result will be. There is
@@ -1051,6 +1083,7 @@ void MainFrame::OnPreviewTimer(wxTimerEvent&) {
     }
 
     last_preview_ = preview_frames_[preview_frame_index_];
+    preview_mapping_.reset();
     UpdatePreviewDisplay();
 }
 
@@ -1251,6 +1284,7 @@ void MainFrame::RunConversion() {
         wxMessageBox(_("Please open an image first."), _("Notice"), wxOK | wxICON_INFORMATION, this);
         return;
     }
+    auto_preview_timer_.Stop();  // whatever was pending is being done now
     if (!BeginJob(JobKind::Preview, _("Converting..."))) return;
 
     aic::ConversionOptions opts = MakeOptions();
@@ -1258,6 +1292,10 @@ void MainFrame::RunConversion() {
     opts.quality_metrics = true;  // blurred error and SSIM for the status line (~50 ms at 320x256)
     const std::string input = input_path_.ToStdString();
     auto result = std::make_shared<aic::PreviewResult>();
+    // Where the source lands on this result's canvas - from the options this run uses, which is
+    // what the picture will show even if the controls change before it is done.
+    const std::optional<aic::CanvasMapping> mapping =
+        source_image_ ? aic::canvas_mapping(source_image_->width(), source_image_->height(), opts) : std::nullopt;
 
     StartJob(
         [this, opts, input, result](BackgroundJob::Context& ctx) mutable {
@@ -1267,7 +1305,7 @@ void MainFrame::RunConversion() {
             };
             *result = pipeline_.preview(input, opts);
         },
-        [this, result] {
+        [this, result, mapping] {
             if (result->cancelled) {
                 SetStatus(_("Cancelled."));
                 return;
@@ -1278,9 +1316,18 @@ void MainFrame::RunConversion() {
                 SetStatus(_("Conversion failed."));
                 return;
             }
+            // Taking the result in changes controls (the palette swatches); that is no setting of
+            // the user's and must not start the next auto preview.
+            handling_result_ = true;
             last_preview_ = std::move(*result);
             params_->NotifyPaletteGenerated(last_preview_->frame.palette);
-            UpdatePreviewDisplay();
+            handling_result_ = false;
+            const bool geometry_changed = preview_mapping_ != mapping;
+            preview_mapping_ = mapping;
+            UpdatePreviewDisplay();  // keeps zoom and position when the picture has the size of the last one
+            // A new crop, size or scaling puts the picture elsewhere on the canvas: the preview
+            // takes its place from the source again. Otherwise the two still fit.
+            if (geometry_changed) SyncLinkedView(source_view_);
             const aic::QualityMetrics& qm = last_preview_->metrics;
             SetStatus(wxString::Format(_("%dx%d  error=%.4f  blurred=%.4f  SSIM=%.3f  LACE=%s"),
                                         last_preview_->frame.width, last_preview_->frame.height,
@@ -1394,6 +1441,7 @@ void MainFrame::UpdatePreviewDisplay() {
     switch (preview_mode_->GetSelection()) {
         case 1: map = aic::make_ham_map(last_preview_->frame); break;
         case 2: map = aic::make_error_map(last_preview_->canvas, last_preview_->decoded); break;
+        case 3: map = last_preview_->canvas; break;  // what the encoder was given (empty during animation playback)
         default: break;
     }
     wxImage img = ToWxImage(map.empty() ? last_preview_->decoded : map);
@@ -1414,8 +1462,73 @@ void MainFrame::UpdatePreviewDisplay() {
     // rendering it half as tall as wide at any zoom level.
     bool squash = interlace_scale_check_->GetValue() && last_preview_->lace;
     preview_view_->SetVerticalSquash(squash ? 0.5 : 1.0);
-    preview_view_->SetImage(img);
+    // The same size as the picture shown before keeps its zoom and position: a new result, another
+    // map of the same frame, or the original lands exactly where the eye was.
+    preview_view_->SetImage(img, true);
+}
+
+void MainFrame::ScheduleAutoPreview(int delay_ms) {
+    if (handling_result_) return;
+    if (!params_->IsAutoPreviewEnabled() || params_->IsAnimationEnabled() || input_path_.IsEmpty()) {
+        auto_preview_timer_.Stop();  // switched off (or no longer applicable) while a conversion was pending
+        return;
+    }
+    auto_preview_timer_.StartOnce(delay_ms);  // restarts a running pause: it is the pause since the LAST change
+}
+
+void MainFrame::OnAutoPreviewTimer(wxTimerEvent&) {
+    if (!params_->IsAutoPreviewEnabled() || params_->IsAnimationEnabled() || input_path_.IsEmpty()) return;
+    if (job_.IsRunning() && IsExportJob(job_kind_)) {  // never in the way of a save: try again later, silently
+        auto_preview_timer_.StartOnce(1000);
+        return;
+    }
+    RunConversion();
+}
+
+void MainFrame::UpdateZoomLabels() {
+    if (source_zoom_label_) source_zoom_label_->SetLabel(wxString::Format("%d%%", source_view_->GetZoomPercent()));
     if (preview_zoom_label_) preview_zoom_label_->SetLabel(wxString::Format("%d%%", preview_view_->GetZoomPercent()));
+}
+
+void MainFrame::OnViewChanged(ImageView* origin, bool by_user) {
+    UpdateZoomLabels();
+    if (!by_user || syncing_views_) return;
+    link_leader_ = origin;
+    if (link_views_check_->GetValue()) SyncLinkedView(origin);
+}
+
+void MainFrame::SyncLinkedView(ImageView* leader) {
+    if (!link_views_check_->GetValue() || !preview_mapping_ || !leader) return;
+    if (!source_view_->HasImage() || !preview_view_->HasImage()) return;
+    const bool from_source = leader == source_view_;
+    ImageView* follower = from_source ? preview_view_ : source_view_;
+
+    const ImageView::View lead = leader->GetView();
+    ImageView::View view;
+    view.fit = lead.fit;  // fit follows fit: "show everything" means the whole picture in each view
+    if (!lead.fit) {
+        const aic::CanvasMapping& m = *preview_mapping_;
+        const aic::CanvasPoint center = from_source ? m.to_canvas({lead.center_x, lead.center_y})
+                                                    : m.to_source({lead.center_x, lead.center_y});
+        view.center_x = center.x;
+        view.center_y = center.y;
+        view.zoom = from_source ? m.zoom_to_canvas(lead.zoom) : m.zoom_to_source(lead.zoom);
+    }
+    syncing_views_ = true;
+    follower->SetView(view);
+    syncing_views_ = false;
+    UpdateZoomLabels();
+}
+
+void MainFrame::ToggleOriginalView() {
+    const int original = static_cast<int>(preview_mode_->GetCount()) - 1;
+    if (preview_mode_->GetSelection() == original) {
+        preview_mode_->SetSelection(mode_before_original_);
+    } else {
+        mode_before_original_ = preview_mode_->GetSelection();
+        preview_mode_->SetSelection(original);
+    }
+    UpdatePreviewDisplay();
 }
 
 void MainFrame::SetStatus(const wxString& text) { status_label_->SetLabel(text); }

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: renderHAM 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:42+0100\n"
+"POT-Creation-Date: 2026-11-25 18:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,7 +15,7 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: AboutDialog.cpp:8 MainFrame.cpp:338
+#: AboutDialog.cpp:8 MainFrame.cpp:360
 msgid "About"
 msgstr ""
 
@@ -67,34 +67,38 @@ msgid "Convert / play preview"
 msgstr ""
 
 #: AboutDialog.cpp:51
-msgid "Cycle preview view (preview / HAM map / error map)"
+msgid "Cycle preview view (preview / HAM map / error map / original)"
 msgstr ""
 
 #: AboutDialog.cpp:52
-msgid "Cancel the running conversion or export"
+msgid "Switch between the original (before HAM) and the previous view"
 msgstr ""
 
 #: AboutDialog.cpp:53
-msgid "Rotate the source image left / right"
+msgid "Cancel the running conversion or export"
 msgstr ""
 
 #: AboutDialog.cpp:54
-msgid "Mirror the source image horizontally / vertically"
+msgid "Rotate the source image left / right"
 msgstr ""
 
 #: AboutDialog.cpp:55
+msgid "Mirror the source image horizontally / vertically"
+msgstr ""
+
+#: AboutDialog.cpp:56
 msgid "Add keyframe"
 msgstr ""
 
-#: AboutDialog.cpp:56 MainFrame.cpp:1130
+#: AboutDialog.cpp:57 MainFrame.cpp:1163
 msgid "Quit"
 msgstr ""
 
-#: AboutDialog.cpp:57
+#: AboutDialog.cpp:58
 msgid "Zoom preview in/out"
 msgstr ""
 
-#: AboutDialog.cpp:58
+#: AboutDialog.cpp:59
 msgid "Zoom preview to fit / 100%"
 msgstr ""
 
@@ -122,124 +126,143 @@ msgstr ""
 msgid "All palette files"
 msgstr ""
 
-#: MainFrame.cpp:151
+#: MainFrame.cpp:158
 msgid "Zoom"
 msgstr ""
 
-#: MainFrame.cpp:162
+#: MainFrame.cpp:169
 msgid "Show at 100% (one picture pixel per screen pixel)"
 msgstr ""
 
-#: MainFrame.cpp:163
+#: MainFrame.cpp:170
 msgid "Fit the whole picture into the window"
 msgstr ""
 
-#: MainFrame.cpp:164
+#: MainFrame.cpp:171
 msgid "Zoom out"
 msgstr ""
 
-#: MainFrame.cpp:165
+#: MainFrame.cpp:172
 msgid "Zoom in"
 msgstr ""
 
-#: MainFrame.cpp:190
+#: MainFrame.cpp:198
 msgid "Open..."
 msgstr ""
 
-#: MainFrame.cpp:191
+#: MainFrame.cpp:199
 msgid "Open an image (Ctrl+O)"
 msgstr ""
 
-#: MainFrame.cpp:192
+#: MainFrame.cpp:200
 msgid "Recent"
 msgstr ""
 
-#: MainFrame.cpp:193
+#: MainFrame.cpp:201
 msgid "Open one of the images opened before (Ctrl+Shift+O)"
 msgstr ""
 
-#: MainFrame.cpp:196
+#: MainFrame.cpp:204
 msgid "(no file loaded - or drag an image here)"
 msgstr ""
 
-#: MainFrame.cpp:199
+#: MainFrame.cpp:207
 msgid "Target directory..."
 msgstr ""
 
-#: MainFrame.cpp:200 MainFrame.cpp:696
+#: MainFrame.cpp:208 MainFrame.cpp:726
 msgid "Save"
 msgstr ""
 
-#: MainFrame.cpp:201
+#: MainFrame.cpp:209
 msgid "Save to the target directory (Ctrl+S)"
 msgstr ""
 
-#: MainFrame.cpp:202 MainFrame.cpp:697
+#: MainFrame.cpp:210 MainFrame.cpp:727
 msgid "Save As..."
 msgstr ""
 
-#: MainFrame.cpp:203
+#: MainFrame.cpp:211
 msgid "Save with a file picker (Ctrl+Shift+S)"
 msgstr ""
 
-#: MainFrame.cpp:227
+#: MainFrame.cpp:235
 msgid "Source"
 msgstr ""
 
-#: MainFrame.cpp:230
+#: MainFrame.cpp:238
 msgid "Amiga Preview (HAM6)"
 msgstr ""
 
-#: MainFrame.cpp:246
+#: MainFrame.cpp:254
 msgid "Simulate interlace (half height)"
 msgstr ""
 
-#: MainFrame.cpp:253 ParameterPanel.cpp:248
+#: MainFrame.cpp:261 ParameterPanel.cpp:288
 msgid "Preview"
 msgstr ""
 
-#: MainFrame.cpp:254
+#: MainFrame.cpp:262
 msgid "HAM map"
 msgstr ""
 
-#: MainFrame.cpp:255
+#: MainFrame.cpp:263
 msgid "Error map"
 msgstr ""
 
-#: MainFrame.cpp:258
-msgid ""
-"What the preview shows: the decoded HAM6 result, a map of the HAM operation "
-"used for each pixel (black = Select, red/green/blue = Modify R/G/B), or an "
-"error map (brightness = distance from the source image, white = 0.10 OKLab "
-"or more). F6 cycles through the views. The error map is only available for "
-"the single-frame preview, not while an animation plays."
+#: MainFrame.cpp:264
+msgid "Original"
 msgstr ""
 
-#: MainFrame.cpp:278
+#: MainFrame.cpp:267
+msgid ""
+"What the preview shows: the decoded HAM6 result, a map of the HAM operation "
+"used for each pixel (black = Select, red/green/blue = Modify R/G/B), an "
+"error map (brightness = distance from the source image, white = 0.10 OKLab "
+"or more), or the original: the picture as the encoder received it (cropped, "
+"scaled, color-corrected), at the size of the preview - the \"before\" to the "
+"HAM6 \"after\", in the same place at the same zoom. F6 cycles through the "
+"views, F7 switches between the original and what was shown before. The error "
+"map and the original are only available for the single-frame preview, not "
+"while an animation plays."
+msgstr ""
+
+#: MainFrame.cpp:290
 msgid "Rotate the source 90 degrees to the left (Ctrl+L)"
 msgstr ""
 
-#: MainFrame.cpp:279
+#: MainFrame.cpp:291
 msgid "Rotate the source 90 degrees to the right (Ctrl+R)"
 msgstr ""
 
-#: MainFrame.cpp:280
+#: MainFrame.cpp:292
 msgid "Mirror the source left to right (Ctrl+Shift+H)"
 msgstr ""
 
-#: MainFrame.cpp:281
+#: MainFrame.cpp:293
 msgid "Mirror the source top to bottom (Ctrl+Shift+V)"
 msgstr ""
 
-#: MainFrame.cpp:318
+#: MainFrame.cpp:306
+msgid "Link zoom and pan"
+msgstr ""
+
+#: MainFrame.cpp:308
+msgid ""
+"Zoom and pan the source and the preview together, so both always show the "
+"same part of the picture - the crop box and the scaling are taken into "
+"account, so a detail is in the same place in both views."
+msgstr ""
+
+#: MainFrame.cpp:340
 msgid "Save current settings"
 msgstr ""
 
-#: MainFrame.cpp:319
+#: MainFrame.cpp:341
 msgid "Settings..."
 msgstr ""
 
-#: MainFrame.cpp:325
+#: MainFrame.cpp:347
 msgid ""
 "After a conversion: error = mean OKLab distance per pixel (lower is better); "
 "blurred = the same after blurring both pictures a little (sigma 1.5 px), the "
@@ -250,367 +273,367 @@ msgid ""
 "picture."
 msgstr ""
 
-#: MainFrame.cpp:333
+#: MainFrame.cpp:355
 msgid "Cancel"
 msgstr ""
 
-#: MainFrame.cpp:334
+#: MainFrame.cpp:356
 msgid "Stop the running conversion (Esc)"
 msgstr ""
 
-#: MainFrame.cpp:423
+#: MainFrame.cpp:445
 msgid "List of recent images cleared"
 msgstr ""
 
-#: MainFrame.cpp:447
+#: MainFrame.cpp:470
 msgid "Source rotated to the left"
 msgstr ""
 
-#: MainFrame.cpp:448
+#: MainFrame.cpp:471
 msgid "Source rotated to the right"
 msgstr ""
 
-#: MainFrame.cpp:449
+#: MainFrame.cpp:472
 msgid "Source mirrored left to right"
 msgstr ""
 
-#: MainFrame.cpp:450
+#: MainFrame.cpp:473
 msgid "Source mirrored top to bottom"
 msgstr ""
 
-#: MainFrame.cpp:586
+#: MainFrame.cpp:615
 #, c-format
 msgid "Failed to load: %s"
 msgstr ""
 
-#: MainFrame.cpp:586 MainFrame.cpp:688 MainFrame.cpp:882 MainFrame.cpp:886
-#: MainFrame.cpp:898 MainFrame.cpp:982 MainFrame.cpp:1276 MainFrame.cpp:1314
-#: ParameterPanel.cpp:771 ParameterPanel.cpp:809
+#: MainFrame.cpp:615 MainFrame.cpp:718 MainFrame.cpp:913 MainFrame.cpp:917
+#: MainFrame.cpp:929 MainFrame.cpp:1013 MainFrame.cpp:1314 MainFrame.cpp:1361
+#: ParameterPanel.cpp:826 ParameterPanel.cpp:865
 msgid "Error"
 msgstr ""
 
-#: MainFrame.cpp:603
+#: MainFrame.cpp:632
 #, c-format
 msgid "Source: %dx%d"
 msgstr ""
 
-#: MainFrame.cpp:614
+#: MainFrame.cpp:644
 msgid "Open Image"
 msgstr ""
 
-#: MainFrame.cpp:621
+#: MainFrame.cpp:651
 #, c-format
 msgid "%s  (%dx%d)"
 msgstr ""
 
-#: MainFrame.cpp:673
+#: MainFrame.cpp:703
 msgid "(no recent images)"
 msgstr ""
 
-#: MainFrame.cpp:678
+#: MainFrame.cpp:708
 msgid "Clear list"
 msgstr ""
 
-#: MainFrame.cpp:688
+#: MainFrame.cpp:718
 #, c-format
 msgid "The file no longer exists: %s"
 msgstr ""
 
-#: MainFrame.cpp:696
+#: MainFrame.cpp:726
 msgid "Export Animation"
 msgstr ""
 
-#: MainFrame.cpp:697
+#: MainFrame.cpp:727
 msgid "Export Animation As..."
 msgstr ""
 
-#: MainFrame.cpp:789 MainFrame.cpp:936
+#: MainFrame.cpp:819 MainFrame.cpp:967
 msgid ""
 "Animation needs at least 2 keyframes - use \"Add keyframe\" in the Rendering "
 "box."
 msgstr ""
 
-#: MainFrame.cpp:790 MainFrame.cpp:937 MainFrame.cpp:1059 MainFrame.cpp:1087
-#: MainFrame.cpp:1091 MainFrame.cpp:1206 MainFrame.cpp:1251
+#: MainFrame.cpp:820 MainFrame.cpp:968 MainFrame.cpp:1092 MainFrame.cpp:1120
+#: MainFrame.cpp:1124 MainFrame.cpp:1239 MainFrame.cpp:1284
 msgid "Notice"
 msgstr ""
 
-#: MainFrame.cpp:793
+#: MainFrame.cpp:823
 msgid "Generating animation..."
 msgstr ""
 
-#: MainFrame.cpp:838
+#: MainFrame.cpp:869
 #, c-format
 msgid "Generating animation: frame %d/%d..."
 msgstr ""
 
-#: MainFrame.cpp:864
+#: MainFrame.cpp:895
 msgid "Writing animation file..."
 msgstr ""
 
-#: MainFrame.cpp:881
+#: MainFrame.cpp:912
 #, c-format
 msgid "Failed to write animation file: %s"
 msgstr ""
 
-#: MainFrame.cpp:884
+#: MainFrame.cpp:915
 #, c-format
 msgid "Failed to write frame %d: %s"
 msgstr ""
 
-#: MainFrame.cpp:888 MainFrame.cpp:899
+#: MainFrame.cpp:919 MainFrame.cpp:930
 msgid "Export failed."
 msgstr ""
 
-#: MainFrame.cpp:892
+#: MainFrame.cpp:923
 msgid "Export cancelled."
 msgstr ""
 
-#: MainFrame.cpp:896 MainFrame.cpp:980
+#: MainFrame.cpp:927 MainFrame.cpp:1011
 #, c-format
 msgid "Animation frame %d failed: %s"
 msgstr ""
 
-#: MainFrame.cpp:904
+#: MainFrame.cpp:935
 #, c-format
 msgid "Animation exported: %d frames to %s.anim"
 msgstr ""
 
-#: MainFrame.cpp:906
+#: MainFrame.cpp:937
 #, c-format
 msgid "Animation exported: %d frames to %s"
 msgstr ""
 
-#: MainFrame.cpp:916 MainFrame.cpp:976 MainFrame.cpp:1272
+#: MainFrame.cpp:947 MainFrame.cpp:1007 MainFrame.cpp:1310
 msgid "Cancelled."
 msgstr ""
 
-#: MainFrame.cpp:940
+#: MainFrame.cpp:971
 msgid "Building preview..."
 msgstr ""
 
-#: MainFrame.cpp:967
+#: MainFrame.cpp:998
 #, c-format
 msgid "Building preview: frame %d/%d..."
 msgstr ""
 
-#: MainFrame.cpp:983
+#: MainFrame.cpp:1014
 msgid "Preview failed."
 msgstr ""
 
-#: MainFrame.cpp:1000
+#: MainFrame.cpp:1032
 msgid "Playing animation preview..."
 msgstr ""
 
-#: MainFrame.cpp:1059 MainFrame.cpp:1087 MainFrame.cpp:1251
+#: MainFrame.cpp:1092 MainFrame.cpp:1120 MainFrame.cpp:1284
 msgid "Please open an image first."
 msgstr ""
 
-#: MainFrame.cpp:1062
+#: MainFrame.cpp:1095
 msgid "Save IFF As"
 msgstr ""
 
-#: MainFrame.cpp:1062
+#: MainFrame.cpp:1095
 msgid "Amiga IFF ILBM (*.iff)|*.iff"
 msgstr ""
 
-#: MainFrame.cpp:1075
+#: MainFrame.cpp:1108
 msgid "Select Target Directory"
 msgstr ""
 
-#: MainFrame.cpp:1082
+#: MainFrame.cpp:1115
 #, c-format
 msgid "Target directory set: %s"
 msgstr ""
 
-#: MainFrame.cpp:1091
+#: MainFrame.cpp:1124
 msgid "Please select a target directory first."
 msgstr ""
 
-#: MainFrame.cpp:1110
+#: MainFrame.cpp:1143
 msgid "No target directory selected yet."
 msgstr ""
 
-#: MainFrame.cpp:1130
+#: MainFrame.cpp:1163
 msgid "An export is still running. Cancel it and quit?"
 msgstr ""
 
-#: MainFrame.cpp:1167
+#: MainFrame.cpp:1200
 msgid "Current settings saved as defaults."
 msgstr ""
 
-#: MainFrame.cpp:1204
+#: MainFrame.cpp:1237
 msgid ""
 "Could not restart automatically. Please restart the application manually for "
 "the new language to take effect."
 msgstr ""
 
-#: MainFrame.cpp:1254
+#: MainFrame.cpp:1288
 msgid "Converting..."
-msgstr ""
-
-#: MainFrame.cpp:1276
-#, c-format
-msgid "Conversion failed: %s"
-msgstr ""
-
-#: MainFrame.cpp:1278
-msgid "Conversion failed."
-msgstr ""
-
-#: MainFrame.cpp:1285
-#, c-format
-msgid "%dx%d  error=%.4f  blurred=%.4f  SSIM=%.3f  LACE=%s"
-msgstr ""
-
-#: MainFrame.cpp:1288 MainFrame.cpp:1320
-msgid "on"
-msgstr ""
-
-#: MainFrame.cpp:1288 MainFrame.cpp:1320
-msgid "off"
-msgstr ""
-
-#: MainFrame.cpp:1293
-msgid "Saving..."
-msgstr ""
-
-#: MainFrame.cpp:1310
-msgid "Saving cancelled."
 msgstr ""
 
 #: MainFrame.cpp:1314
 #, c-format
-msgid "Failed to save: %s"
+msgid "Conversion failed: %s"
 msgstr ""
 
 #: MainFrame.cpp:1316
+msgid "Conversion failed."
+msgstr ""
+
+#: MainFrame.cpp:1332
+#, c-format
+msgid "%dx%d  error=%.4f  blurred=%.4f  SSIM=%.3f  LACE=%s"
+msgstr ""
+
+#: MainFrame.cpp:1335 MainFrame.cpp:1367
+msgid "on"
+msgstr ""
+
+#: MainFrame.cpp:1335 MainFrame.cpp:1367
+msgid "off"
+msgstr ""
+
+#: MainFrame.cpp:1340
+msgid "Saving..."
+msgstr ""
+
+#: MainFrame.cpp:1357
+msgid "Saving cancelled."
+msgstr ""
+
+#: MainFrame.cpp:1361
+#, c-format
+msgid "Failed to save: %s"
+msgstr ""
+
+#: MainFrame.cpp:1363
 msgid "Saving failed."
 msgstr ""
 
-#: MainFrame.cpp:1319
+#: MainFrame.cpp:1366
 #, c-format
 msgid "Saved: %s (error=%.4f, LACE=%s)"
 msgstr ""
 
-#: MainFrame.cpp:1328
+#: MainFrame.cpp:1375
 msgid "Export running - Esc cancels it."
 msgstr ""
 
-#: MainFrame.cpp:1381
+#: MainFrame.cpp:1428
 msgid "Cancelling..."
 msgstr ""
 
-#: ParameterPanel.cpp:33
+#: ParameterPanel.cpp:34
 msgid "Fast"
 msgstr ""
 
-#: ParameterPanel.cpp:34
+#: ParameterPanel.cpp:35
 msgid "Standard"
 msgstr ""
 
-#: ParameterPanel.cpp:35
+#: ParameterPanel.cpp:36
 msgid "Best quality"
 msgstr ""
 
-#: ParameterPanel.cpp:56
+#: ParameterPanel.cpp:95
 msgid "352 x 280 (PAL, overscan)"
 msgstr ""
 
-#: ParameterPanel.cpp:58
+#: ParameterPanel.cpp:97
 msgid "352 x 240 (NTSC, overscan)"
 msgstr ""
 
-#: ParameterPanel.cpp:59
+#: ParameterPanel.cpp:98
 msgid "320 x 512 (PAL, interlaced)"
 msgstr ""
 
-#: ParameterPanel.cpp:60
+#: ParameterPanel.cpp:99
 msgid "352 x 560 (PAL, interlaced, overscan)"
 msgstr ""
 
-#: ParameterPanel.cpp:61
+#: ParameterPanel.cpp:100
 msgid "320 x 400 (NTSC, interlaced)"
 msgstr ""
 
-#: ParameterPanel.cpp:62
+#: ParameterPanel.cpp:101
 msgid "352 x 480 (NTSC, interlaced, overscan)"
 msgstr ""
 
-#: ParameterPanel.cpp:63
+#: ParameterPanel.cpp:102
 msgid "Custom..."
 msgstr ""
 
-#: ParameterPanel.cpp:81
+#: ParameterPanel.cpp:120
 msgid "NTSC (8:5)"
 msgstr ""
 
-#: ParameterPanel.cpp:82
+#: ParameterPanel.cpp:121
 msgid "PAL (5:4)"
 msgstr ""
 
-#: ParameterPanel.cpp:119
+#: ParameterPanel.cpp:159
 msgid "Crop (before scaling)"
 msgstr ""
 
-#: ParameterPanel.cpp:121
+#: ParameterPanel.cpp:161
 msgid "Enable crop"
 msgstr ""
 
-#: ParameterPanel.cpp:128
+#: ParameterPanel.cpp:168
 msgid "Width"
 msgstr ""
 
-#: ParameterPanel.cpp:129
+#: ParameterPanel.cpp:169
 msgid "Height"
 msgstr ""
 
-#: ParameterPanel.cpp:147
+#: ParameterPanel.cpp:187
 msgid "Pixels"
 msgstr ""
 
-#: ParameterPanel.cpp:149
+#: ParameterPanel.cpp:189
 msgid "Percent"
 msgstr ""
 
-#: ParameterPanel.cpp:155
+#: ParameterPanel.cpp:195
 msgid "Lock aspect ratio"
 msgstr ""
 
-#: ParameterPanel.cpp:185
+#: ParameterPanel.cpp:225
 msgid "Rendering"
 msgstr ""
 
-#: ParameterPanel.cpp:187
+#: ParameterPanel.cpp:227
 msgid "Enable animation"
 msgstr ""
 
-#: ParameterPanel.cpp:188
+#: ParameterPanel.cpp:228
 msgid "Requires \"Enable crop\" above to also be checked"
 msgstr ""
 
-#: ParameterPanel.cpp:199
+#: ParameterPanel.cpp:239
 msgid "Add keyframe: capture the current crop as a new keyframe (Ctrl+K)"
 msgstr ""
 
-#: ParameterPanel.cpp:203
+#: ParameterPanel.cpp:243
 msgid "Remove the selected keyframe"
 msgstr ""
 
-#: ParameterPanel.cpp:210
+#: ParameterPanel.cpp:250
 msgid "Frames between keyframes"
 msgstr ""
 
-#: ParameterPanel.cpp:218
+#: ParameterPanel.cpp:258
 msgid "Playback speed"
 msgstr ""
 
-#: ParameterPanel.cpp:221
+#: ParameterPanel.cpp:261
 #, c-format
 msgid "%d fps"
 msgstr ""
 
-#: ParameterPanel.cpp:224
+#: ParameterPanel.cpp:264
 msgid ""
 "How fast the animation plays: in the preview here, and in an exported Anim-"
 "File (stored as one frame every 60/fps jiffies of 1/60 s). Numbered single "
@@ -618,75 +641,82 @@ msgid ""
 "counts in 1/60 s."
 msgstr ""
 
-#: ParameterPanel.cpp:233
+#: ParameterPanel.cpp:273
 msgid "Single images"
 msgstr ""
 
-#: ParameterPanel.cpp:233
+#: ParameterPanel.cpp:273
 msgid "Anim-File"
 msgstr ""
 
-#: ParameterPanel.cpp:234
+#: ParameterPanel.cpp:274
 msgid "Export format"
 msgstr ""
 
-#: ParameterPanel.cpp:249 ParameterPanel.cpp:891
+#: ParameterPanel.cpp:289 ParameterPanel.cpp:948
 msgid "Show HAM preview"
 msgstr ""
 
-#: ParameterPanel.cpp:255
+#: ParameterPanel.cpp:295
 msgid "Loop: start again from the beginning when the preview reaches the end"
 msgstr ""
 
-#: ParameterPanel.cpp:259
+#: ParameterPanel.cpp:299
 msgid "Back and forth: play forwards, then backwards, and so on"
 msgstr ""
 
-#: ParameterPanel.cpp:283
+#: ParameterPanel.cpp:307
+msgid ""
+"Auto preview: convert again by itself whenever a setting changes, after a "
+"short pause without further changes (the newest request wins; a conversion "
+"that is still running is replaced). Not available for animations."
+msgstr ""
+
+#: ParameterPanel.cpp:336
 msgid "Target resolution and mode"
 msgstr ""
 
-#: ParameterPanel.cpp:296
+#: ParameterPanel.cpp:349
 msgid "W:"
 msgstr ""
 
-#: ParameterPanel.cpp:298
+#: ParameterPanel.cpp:351
 msgid "H:"
 msgstr ""
 
-#: ParameterPanel.cpp:302
+#: ParameterPanel.cpp:355
 msgid "Fit (letterbox)"
 msgstr ""
 
-#: ParameterPanel.cpp:302
+#: ParameterPanel.cpp:355
 msgid "Fill (crop)"
 msgstr ""
 
-#: ParameterPanel.cpp:302
+#: ParameterPanel.cpp:355
 msgid "Stretch"
 msgstr ""
 
-#: ParameterPanel.cpp:303
+#: ParameterPanel.cpp:356
 msgid "Scaling mode"
 msgstr ""
 
-#: ParameterPanel.cpp:307
+#: ParameterPanel.cpp:360
 msgid "Pixel aspect ratio"
 msgstr ""
 
-#: ParameterPanel.cpp:325
+#: ParameterPanel.cpp:378
 msgid "HAM conversion settings"
 msgstr ""
 
-#: ParameterPanel.cpp:334
+#: ParameterPanel.cpp:387
 msgid "Quality profile"
 msgstr ""
 
-#: ParameterPanel.cpp:338
+#: ParameterPanel.cpp:391
 msgid "Custom"
 msgstr ""
 
-#: ParameterPanel.cpp:340
+#: ParameterPanel.cpp:393
 msgid ""
 "Sets the palette quantizer, the refinement passes and the lookahead below in "
 "one go.\n"
@@ -700,38 +730,38 @@ msgid ""
 "effect then."
 msgstr ""
 
-#: ParameterPanel.cpp:356
+#: ParameterPanel.cpp:409
 msgid "Dithering"
 msgstr ""
 
-#: ParameterPanel.cpp:361 ParameterPanel.cpp:702 ParameterPanel.cpp:1220
+#: ParameterPanel.cpp:414 ParameterPanel.cpp:756 ParameterPanel.cpp:1277
 #, c-format
 msgid "Dither strength: %d%%"
 msgstr ""
 
-#: ParameterPanel.cpp:376
+#: ParameterPanel.cpp:429
 msgid "Palette quantizer"
 msgstr ""
 
-#: ParameterPanel.cpp:377
+#: ParameterPanel.cpp:430
 msgid "Color focus"
 msgstr ""
 
-#: ParameterPanel.cpp:400 ParameterPanel.cpp:648 ParameterPanel.cpp:673
-#: ParameterPanel.cpp:1237
+#: ParameterPanel.cpp:453 ParameterPanel.cpp:702 ParameterPanel.cpp:727
+#: ParameterPanel.cpp:1294
 #, c-format
 msgid "Refinement: %d passes"
 msgstr ""
 
-#: ParameterPanel.cpp:401
+#: ParameterPanel.cpp:454
 msgid "Chroma <-> Luminance: 1.00"
 msgstr ""
 
-#: ParameterPanel.cpp:412
+#: ParameterPanel.cpp:465
 msgid "Allow Modify at line start"
 msgstr ""
 
-#: ParameterPanel.cpp:414
+#: ParameterPanel.cpp:467
 msgid ""
 "Lets a scanline start with a Modify of the border color (palette color 0), "
 "as the ILBM specification allows. Slightly better quality at the left edge, "
@@ -739,16 +769,16 @@ msgid ""
 "those pixels wrongly. No difference if color 0 is black."
 msgstr ""
 
-#: ParameterPanel.cpp:422
+#: ParameterPanel.cpp:475
 msgid "Lookahead: off"
 msgstr ""
 
-#: ParameterPanel.cpp:423
+#: ParameterPanel.cpp:476
 #, c-format
 msgid "Lookahead: %d pixels"
 msgstr ""
 
-#: ParameterPanel.cpp:426
+#: ParameterPanel.cpp:479
 msgid ""
 "Looks several pixels ahead when choosing each HAM operation, so that a color "
 "change can start before an edge instead of after it. Less smearing at edges "
@@ -757,153 +787,153 @@ msgid ""
 "every preview slower. Animations take proportionally longer, too."
 msgstr ""
 
-#: ParameterPanel.cpp:456
+#: ParameterPanel.cpp:509
 msgid "Target color correction"
 msgstr ""
 
-#: ParameterPanel.cpp:465
+#: ParameterPanel.cpp:518
 msgid "Brightness: 0.00"
 msgstr ""
 
-#: ParameterPanel.cpp:466
+#: ParameterPanel.cpp:519
 msgid "Contrast: 1.00"
 msgstr ""
 
-#: ParameterPanel.cpp:475
+#: ParameterPanel.cpp:528
 msgid "Gamma: 1.00"
 msgstr ""
 
-#: ParameterPanel.cpp:476
+#: ParameterPanel.cpp:529
 msgid "Saturation: 1.00"
 msgstr ""
 
-#: ParameterPanel.cpp:491
+#: ParameterPanel.cpp:544
 msgid ""
 "Reset brightness, contrast, gamma and saturation to their neutral values"
 msgstr ""
 
-#: ParameterPanel.cpp:510
+#: ParameterPanel.cpp:563
 msgid "Palette"
 msgstr ""
 
-#: ParameterPanel.cpp:513
+#: ParameterPanel.cpp:566
 msgid "Load palette..."
 msgstr ""
 
-#: ParameterPanel.cpp:514
+#: ParameterPanel.cpp:567
 msgid "Save palette..."
 msgstr ""
 
-#: ParameterPanel.cpp:521
+#: ParameterPanel.cpp:574
 msgid "Lock current palette"
 msgstr ""
 
-#: ParameterPanel.cpp:537
+#: ParameterPanel.cpp:590
 msgid "Current palette"
 msgstr ""
 
-#: ParameterPanel.cpp:548
+#: ParameterPanel.cpp:601
 #, c-format
 msgid "Color %d"
 msgstr ""
 
-#: ParameterPanel.cpp:555
+#: ParameterPanel.cpp:608
 msgid "Lock color 0 (Amiga background)"
 msgstr ""
 
-#: ParameterPanel.cpp:568
+#: ParameterPanel.cpp:621
 msgid "Output"
 msgstr ""
 
-#: ParameterPanel.cpp:570
+#: ParameterPanel.cpp:623
 msgid "ByteRun1 compression"
 msgstr ""
 
-#: ParameterPanel.cpp:574
+#: ParameterPanel.cpp:627
 msgid "Automatic"
 msgstr ""
 
-#: ParameterPanel.cpp:574
+#: ParameterPanel.cpp:627
 msgid "On"
 msgstr ""
 
-#: ParameterPanel.cpp:574
+#: ParameterPanel.cpp:627
 msgid "Off"
 msgstr ""
 
-#: ParameterPanel.cpp:575
+#: ParameterPanel.cpp:628
 msgid "Interlace flag"
 msgstr ""
 
-#: ParameterPanel.cpp:698 ParameterPanel.cpp:1243
+#: ParameterPanel.cpp:752 ParameterPanel.cpp:1300
 #, c-format
 msgid "Chroma <-> Luminance: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:732 ParameterPanel.cpp:758 ParameterPanel.cpp:1247
+#: ParameterPanel.cpp:786 ParameterPanel.cpp:812 ParameterPanel.cpp:1304
 #, c-format
 msgid "Brightness: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:737 ParameterPanel.cpp:759 ParameterPanel.cpp:1251
+#: ParameterPanel.cpp:791 ParameterPanel.cpp:813 ParameterPanel.cpp:1308
 #, c-format
 msgid "Contrast: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:742 ParameterPanel.cpp:760 ParameterPanel.cpp:1255
+#: ParameterPanel.cpp:796 ParameterPanel.cpp:814 ParameterPanel.cpp:1312
 #, c-format
 msgid "Gamma: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:747 ParameterPanel.cpp:761 ParameterPanel.cpp:1259
+#: ParameterPanel.cpp:801 ParameterPanel.cpp:815 ParameterPanel.cpp:1316
 #, c-format
 msgid "Saturation: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:765
+#: ParameterPanel.cpp:820
 msgid "Load Palette"
 msgstr ""
 
-#: ParameterPanel.cpp:771
+#: ParameterPanel.cpp:826
 #, c-format
 msgid "Failed to load palette: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:783 ParameterPanel.cpp:789
+#: ParameterPanel.cpp:839 ParameterPanel.cpp:845
 msgid "Save Palette As"
 msgstr ""
 
-#: ParameterPanel.cpp:789
+#: ParameterPanel.cpp:845
 #, c-format
 msgid "%s already exists. Replace it?"
 msgstr ""
 
-#: ParameterPanel.cpp:809
+#: ParameterPanel.cpp:865
 #, c-format
 msgid "Failed to save palette: %s"
 msgstr ""
 
-#: ParameterPanel.cpp:891
+#: ParameterPanel.cpp:948
 msgid "Play preview"
 msgstr ""
 
-#: ParameterPanel.cpp:892
+#: ParameterPanel.cpp:949
 msgid "Play the animation preview (F5)"
 msgstr ""
 
-#: ParameterPanel.cpp:893
+#: ParameterPanel.cpp:950
 msgid "Convert and show a single-frame preview (F5)"
 msgstr ""
 
-#: ParameterPanel.cpp:914
+#: ParameterPanel.cpp:971
 msgid "Stop preview"
 msgstr ""
 
-#: ParameterPanel.cpp:915
+#: ParameterPanel.cpp:972
 msgid "Stop the animation preview (F5)"
 msgstr ""
 
-#: ParameterPanel.cpp:925 ParameterPanel.cpp:965
+#: ParameterPanel.cpp:982 ParameterPanel.cpp:1022
 #, c-format
 msgid "Keyframe %d"
 msgstr ""

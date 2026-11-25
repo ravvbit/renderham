@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <iterator>
 
 namespace {
 
@@ -48,6 +49,44 @@ constexpr int kAnimFpsChoices[] = {60, 30, 20, 15, 12, 10, 6, 5, 3, 2, 1};
 constexpr int kDefaultAnimFpsIndex = 1;
 
 }  // namespace
+
+class ParameterPanel::ChangeWatcher : public wxEventFilter {
+public:
+    explicit ChangeWatcher(ParameterPanel* panel) : panel_(panel) { wxEvtHandler::AddFilter(this); }
+    ~ChangeWatcher() override { wxEvtHandler::RemoveFilter(this); }
+
+    int FilterEvent(wxEvent& event) override {
+        if (!event.IsCommandEvent()) return Event_Skip;
+        // The events a control sends when its value was changed by the user. Buttons are not among
+        // them: what a button does to the settings reports itself (see NotifyOptionsChanged).
+        const wxEventType type = event.GetEventType();
+        if (type != wxEVT_CHECKBOX && type != wxEVT_RADIOBUTTON && type != wxEVT_RADIOBOX && type != wxEVT_CHOICE &&
+            type != wxEVT_COMBOBOX && type != wxEVT_SLIDER && type != wxEVT_SPINCTRL &&
+            type != wxEVT_SPINCTRLDOUBLE && type != wxEVT_COLOURPICKER_CHANGED)
+            return Event_Skip;
+        const auto* source = wxDynamicCast(event.GetEventObject(), wxWindow);
+        if (source && panel_->IsDescendant(const_cast<wxWindow*>(source)) && panel_->AffectsSinglePreview(source))
+            panel_->NotifyOptionsChanged();
+        return Event_Skip;  // never in the way of the normal handling
+    }
+
+private:
+    ParameterPanel* panel_;
+};
+
+ParameterPanel::~ParameterPanel() = default;
+
+void ParameterPanel::NotifyOptionsChanged() {
+    if (options_changed_cb_) options_changed_cb_();
+}
+
+bool ParameterPanel::AffectsSinglePreview(const wxWindow* control) const {
+    // Animation and export settings change nothing about a single preview; neither does the unit
+    // of the crop numbers (the crop itself reports through NotifyCropChanged).
+    const wxWindow* const unrelated[] = {animation_enable_, keyframe_choice_, frames_per_segment_, anim_speed_,
+                                         output_mode_,      crop_unit_px_,    crop_unit_pct_,      compress_};
+    return std::find(std::begin(unrelated), std::end(unrelated), control) == std::end(unrelated);
+}
 
 ParameterPanel::ParameterPanel(wxWindow* parent)
     : wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL | wxHSCROLL | wxTAB_TRAVERSAL) {
@@ -109,6 +148,7 @@ ParameterPanel::ParameterPanel(wxWindow* parent)
 
     UpdateCropControlsEnabled();
     UpdateCustomResolutionEnabled();
+    change_watcher_ = std::make_unique<ChangeWatcher>(this);
 }
 
 int ParameterPanel::NaturalHeight() const {
@@ -257,7 +297,18 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
                                                  MakeMaskIcon(kIconPingPong, kGuiIconSize, icon_color));
     SetMaskIcon(preview_pingpong_, kIconPingPong, kGuiIconSize);
     preview_pingpong_->SetToolTip(_("Back and forth: play forwards, then backwards, and so on"));
+    // Next to the button it belongs to: the single-image preview is what it repeats. A toggle
+    // button with a symbol like the two next to it - a checkbox with words made the box wider
+    // than its column in German, which squeezed the right-hand column out of the window.
+    auto_preview_ = new wxBitmapToggleButton(preview_box->GetStaticBox(), wxID_ANY,
+                                             MakeMaskIcon(kIconAutoPreview, kGuiIconSize, icon_color));
+    SetMaskIcon(auto_preview_, kIconAutoPreview, kGuiIconSize);
+    auto_preview_->SetToolTip(
+        _("Auto preview: convert again by itself whenever a setting changes, after a short pause without "
+          "further changes (the newest request wins; a conversion that is still running is replaced). "
+          "Not available for animations."));
     preview_box->Add(play_preview_btn_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
+    preview_box->Add(auto_preview_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     preview_box->Add(preview_loop_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     preview_box->Add(preview_pingpong_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     box->Add(preview_box, 0, wxEXPAND | wxALL, 4);
@@ -269,6 +320,8 @@ void ParameterPanel::BuildAnimationBox(wxSizer* parent_sizer) {
     remove_keyframe_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnRemoveKeyframe, this);
     keyframe_choice_->Bind(wxEVT_CHOICE, &ParameterPanel::OnKeyframeSelected, this);
     play_preview_btn_->Bind(wxEVT_BUTTON, &ParameterPanel::OnPlayPreviewClicked, this);
+    // Switching it on starts a preview, switching it off cancels a pending one: the frame decides.
+    auto_preview_->Bind(wxEVT_TOGGLEBUTTON, [this](wxCommandEvent&) { NotifyOptionsChanged(); });
     frames_per_segment_->Bind(wxEVT_SPINCTRL, [this](wxCommandEvent&) {
         if (animation_composition_changed_cb_) animation_composition_changed_cb_();
     });
@@ -639,6 +692,7 @@ void ParameterPanel::NotifyCropChanged() {
         if (rect) crop_keyframes_[static_cast<size_t>(sel)] = *rect;
     }
     if (crop_changed_cb_) crop_changed_cb_();
+    NotifyOptionsChanged();
 }
 
 void ParameterPanel::OnResolutionPresetChanged(wxCommandEvent&) { UpdateCustomResolutionEnabled(); }
@@ -759,6 +813,7 @@ void ParameterPanel::OnResetColorCorrection(wxCommandEvent&) {
     contrast_label_->SetLabel(wxString::Format(_("Contrast: %s"), FormatFloat(1.f)));
     gamma_label_->SetLabel(wxString::Format(_("Gamma: %s"), FormatFloat(1.f)));
     saturation_label_->SetLabel(wxString::Format(_("Saturation: %s"), FormatFloat(1.f)));
+    NotifyOptionsChanged();  // the sliders moved without an event
 }
 
 void ParameterPanel::OnLoadPalette(wxCommandEvent&) {
@@ -774,6 +829,7 @@ void ParameterPanel::OnLoadPalette(wxCommandEvent&) {
     reference_palette_ = loaded;
     PopulateColorPickers(loaded);
     UpdatePaletteControlsEnabled();
+    NotifyOptionsChanged();
 }
 
 void ParameterPanel::OnSavePalette(wxCommandEvent&) {
@@ -869,6 +925,7 @@ void ParameterPanel::UpdateKeyframeControlsEnabled() {
     frames_per_segment_->Enable(animation_enable_->GetValue());
     anim_speed_->Enable(animation_enable_->GetValue());
     output_mode_->Enable(animation_enable_->GetValue());
+    auto_preview_->Enable(!animation_enable_->GetValue());  // repeats the single-image preview
     preview_loop_->Enable(animation_enable_->GetValue());
     preview_pingpong_->Enable(animation_enable_->GetValue());
     // With Animation off, this button takes over the former standalone
@@ -1268,6 +1325,7 @@ void ParameterPanel::LoadDefaults() {
     }
 
     if (cfg->Read("Defaults/Compress", &b)) compress_->SetValue(b);
+    if (cfg->Read("Defaults/AutoPreview", &b)) auto_preview_->SetValue(b);
     if (cfg->Read("Defaults/LaceMode", &v) && v >= 0 && v <= 2) lace_mode_->SetSelection(static_cast<int>(v));
 }
 
@@ -1304,6 +1362,7 @@ void ParameterPanel::SaveAsDefaults() const {
         cfg->Write("Defaults/FixColor0B", static_cast<long>(c.Blue()));
     }
     cfg->Write("Defaults/Compress", compress_->GetValue());
+    cfg->Write("Defaults/AutoPreview", auto_preview_->GetValue());
     cfg->Write("Defaults/LaceMode", static_cast<long>(lace_mode_->GetSelection()));
     cfg->Flush();
 }

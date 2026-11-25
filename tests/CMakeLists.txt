@@ -84,3 +84,10 @@ aic_link_whole_archive(test_profiles renderhamlib)
 target_compile_features(test_profiles PRIVATE cxx_std_17)
 target_compile_definitions(test_profiles PRIVATE RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata")
 add_test(NAME profiles COMMAND test_profiles)
+
+# Where a point of the source lands on the canvas (the GUI couples the zoom and pan of its two views
+# with it), checked against what the pipeline really does.
+add_executable(test_canvas_mapping test_canvas_mapping.cpp)
+aic_link_whole_archive(test_canvas_mapping renderhamlib)
+target_compile_features(test_canvas_mapping PRIVATE cxx_std_17)
+add_test(NAME canvas_mapping COMMAND test_canvas_mapping)

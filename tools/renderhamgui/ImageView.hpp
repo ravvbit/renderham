@@ -15,7 +15,11 @@
 //    anti-aliased blur that won't exist on real hardware;
 //  - optionally shows an interactively editable crop rubber-band
 //    (drag the interior to move, drag an edge/corner handle to resize),
-//    independent of whether zooming is enabled.
+//    independent of whether zooming is enabled;
+//  - describes what it shows as an image-space View (zoom plus the image
+//    point in the middle of the window), which can be read, set and watched,
+//    so that a second ImageView can be made to show the same part of the
+//    picture (see MainFrame's "link zoom and pan").
 
 #include <wx/wx.h>
 #include <wx/scrolwin.h>
@@ -27,7 +31,11 @@ class ImageView : public wxScrolledWindow {
 public:
     explicit ImageView(wxWindow* parent);
 
-    void SetImage(wxImage image);
+    // Replaces the picture. Starts in fit mode, unless keep_view is set and the new picture has
+    // the size of the old one: then zoom and position stay, so a new conversion result or another
+    // map of the same frame appears exactly where the last one was looked at.
+    void SetImage(wxImage image, bool keep_view = false);
+    bool HasImage() const { return image_.IsOk(); }
     void SetZoomEnabled(bool enabled) { zoom_enabled_ = enabled; }
 
     void ZoomIn();
@@ -39,6 +47,26 @@ public:
     // whatever scale fit mode is currently rendering at).
     int GetZoomPercent() const { return static_cast<int>(effective_zoom_ * 100.0 + 0.5); }
     bool IsFitMode() const { return fit_mode_; }
+
+    // What the window shows, in image terms. zoom = screen pixels per image pixel along x (the
+    // vertical squash only changes y); (center_x, center_y) = the point of the picture in the
+    // middle of the window, in continuous image coordinates (pixel edges at integers). In fit mode
+    // zoom and center describe what fit mode currently renders and `fit` is set.
+    struct View {
+        bool fit = true;
+        double zoom = 1.0;
+        double center_x = 0.0, center_y = 0.0;
+    };
+    View GetView() const;
+    // Shows `view`: fit mode if it says so, else that zoom (limited to the supported range) around
+    // that center. Does not invoke the view-changed callback - like SetCropOverlay, that one is
+    // only for what the user does, which is what keeps two linked views from echoing each other.
+    void SetView(const View& view);
+
+    // Invoked after every change of zoom or position: by_user = true when the user zoomed or
+    // panned (buttons, wheel, drag, scrollbars), false when the window itself changed what it shows
+    // (new picture, resize in fit mode).
+    void SetViewChangedCallback(std::function<void(bool by_user)> cb) { on_view_changed_ = std::move(cb); }
 
     // Crop rubber-band overlay, in IMAGE pixel coordinates. nullopt
     // hides it. Setting it programmatically (e.g. because the crop
@@ -71,11 +99,7 @@ public:
     // pixel stays inspectable when zooming in - unlike an approach
     // that pre-shrinks the image by discarding rows, which would both
     // throw away real data and still render square pixels once zoomed.
-    void SetVerticalSquash(double factor) {
-        vertical_squash_ = factor > 0.0 ? factor : 1.0;
-        RebuildScaledBitmap();
-        Refresh();
-    }
+    void SetVerticalSquash(double factor);
 
 private:
     enum class Handle { None, Inside, N, S, E, W, NE, NW, SE, SW };
@@ -88,7 +112,17 @@ private:
     void OnMouseUp(wxMouseEvent&);
     void OnCaptureLost(wxMouseCaptureLostEvent&);
 
-    void ApplyZoom(double new_zoom);
+    void OnScrollLine(wxScrollWinEvent&);
+    void OnScrollOther(wxScrollWinEvent&);
+
+    // Zooms to new_zoom (manual mode) keeping the picture point under client_anchor (a position in
+    // the window) where it is.
+    void ZoomAround(double new_zoom, wxPoint client_anchor);
+    void ApplyZoom(double new_zoom) { ZoomAround(new_zoom, wxPoint(GetClientSize().x / 2, GetClientSize().y / 2)); }
+    // Scrolls so that image point (ix, iy) is at client_pt. Manual mode, after RebuildScaledBitmap.
+    void PlaceImagePoint(double ix, double iy, wxPoint client_pt);
+    void PanBy(int dx, int dy);  // screen pixels, as far as there is content
+    void NotifyViewChanged(bool by_user);
     void RebuildScaledBitmap();  // recomputes scaled_bitmap_ for the current effective_zoom_
 
     wxPoint ImageToLogical(wxPoint image_pt) const;
@@ -120,6 +154,8 @@ private:
     double manual_zoom_ = 1.0;     // used when fit_mode_ is false
     double effective_zoom_ = 1.0;  // whatever was actually rendered last (fit-computed or manual)
     double vertical_squash_ = 1.0;  // see SetVerticalSquash
+    std::function<void(bool)> on_view_changed_;
+    bool setting_view_ = false;  // inside SetView: whatever the window reports meanwhile is not the user's doing
 
     bool dragging_pan_ = false;
     wxPoint drag_start_mouse_;
@@ -137,4 +173,8 @@ private:
     static constexpr double kMaxZoom = 32.0;
     static constexpr double kZoomStep = 1.5;
     static constexpr int kHandleTolerance = 7;  // logical/screen pixels
+    // The scroll unit is one screen pixel, so a view can be put exactly where another one needs it
+    // (a coarser unit would leave two linked views up to half a unit apart); a wheel notch, an
+    // arrow click and the like move by these many pixels instead.
+    static constexpr int kLineStep = 10;
 };

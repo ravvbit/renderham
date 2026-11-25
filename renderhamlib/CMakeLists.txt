@@ -8,6 +8,7 @@ add_library(renderhamlib STATIC
     src/color_correction.cpp
     src/palette_io.cpp
     src/resize.cpp
+    src/canvas_mapping.cpp
     src/ham6_encoder.cpp
     src/ham_maps.cpp
     src/quality_metrics.cpp

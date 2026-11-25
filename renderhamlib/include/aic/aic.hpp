@@ -5,6 +5,7 @@
 // that just want the whole public API without picking individual headers.
 
 #include "aic/anim_writer.hpp"
+#include "aic/canvas_mapping.hpp"
 #include "aic/color_space.hpp"
 #include "aic/crop.hpp"
 #include "aic/dither.hpp"

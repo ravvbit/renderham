@@ -42,6 +42,23 @@ All notable changes to this project are documented here. The format follows
   from the file extension, loading from the content. Files that are not palettes of 16 colors are refused
   with the line number of the first problem. A test (`palette_formats`) round-trips all three formats,
   reads hand-written files from other programs and checks the refusals.
+- **Linked source and preview** (GUI): zoom and position of the two views are coupled. What you zoom or
+  scroll in one view (zoom keys and buttons, `Ctrl`+wheel, wheel, drag, scroll bars, fit) is done in the
+  other so that both show the same part of the picture at the same size - also with a crop box, fit,
+  fill or stretch, and non-square pixels. The new `aic::canvas_mapping()` (`aic/canvas_mapping.hpp`) is
+  the map from a point of the source to its place on the HAM canvas and back, taken from the same
+  geometry code the pipeline uses; a test (`canvas_mapping`) checks it against where the pipeline really
+  puts a marker for every scaling mode, with crop boxes, with boxes reaching past the source and with
+  non-square pixels. The link is the checkbox **Link zoom and pan** in the row of the source transforms; it is on
+  by default and remembered.
+- **Original view**: the result view choice has a fourth entry, **Original**, which shows the picture the
+  encoder started from (cropped, scaled and color-corrected, before the 4096 colors) at the same zoom and
+  position, so before and after can be flipped without the picture moving. `F6` cycles all four views,
+  `F7` switches between the original and the one you were looking at.
+- **Auto preview** (GUI): a toggle next to **Show HAM preview** converts again by itself when a setting
+  changes - after a short pause without further changes - and once after opening a picture or rotating
+  it. The newest request wins: a conversion that is still running is replaced. Off by default, not
+  available for animations, remembered with the other defaults. `F5` works as before.
 
 ### Changed
 
@@ -60,6 +77,10 @@ All notable changes to this project are documented here. The format follows
 - README and `THIRD_PARTY_NOTICES.md` state the origin and license of the example photos (also the
   cat photo in the GUI screenshot) and which third-party libraries the AppImage and the Flatpak contain.
 - The README's project layout no longer mentions the removed development log.
+- GUI: the zoom of source and result is no longer independent while **Link zoom and pan** is on (the
+  default); untick it for the old behavior. The zoom keys (`Ctrl+=` and so on) act on the result view,
+  the source follows; each view's own zoom buttons work on that view and the other follows.
+- GUI: `F6` now cycles four result views (preview, HAM map, error map, original).
 
 ### Fixed
 

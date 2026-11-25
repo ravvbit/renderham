@@ -157,8 +157,17 @@ render pan frames with `--crop` from a script).
 
 ![The renderHAMgui main window with a converted photo](docs/images/gui.png)
 
-* Source image on the left, HAM6 result on the right, each with its own zoom (`Ctrl+=`, `Ctrl+-`,
-  `Ctrl+9` fit, `Ctrl+0` 100 %), always drawn with hard pixel edges.
+* Source image on the left, HAM6 result on the right, always drawn with hard pixel edges. Zoom
+  (`Ctrl+=`, `Ctrl+-`, `Ctrl+9` fit, `Ctrl+0` 100 %, `Ctrl`+wheel) and position (wheel, drag, scroll
+  bars) are **linked** by default: both views show the same part of the picture at the same size,
+  whatever the crop box, fit/fill/stretch and pixel aspect do to it. Untick *Link zoom and pan* to move
+  them separately.
+* The result view has four faces – preview, HAM map, error map and the **original** (what the encoder
+  started from, before the 4096 colors). `F6` cycles them, `F7` flips between the original and the view
+  you came from, at the same zoom and position, so before and after can be compared in place.
+* **Auto preview** (the toggle next to *Show HAM preview*) converts again by itself a moment after a
+  setting changes, after opening a picture and after rotating it. The newest request wins, so moving
+  a slider never queues up conversions. It is off by default; `F5` always works.
 * Open an image with the button, with drag and drop, or from the **Recent** list next to it (the last
   nine images; `Ctrl+Shift+O`, then a digit key). Readable formats: PNG, JPEG, BMP, TGA, GIF (first
   frame), Photoshop PSD (the flattened picture) and binary PPM/PGM.
@@ -176,7 +185,8 @@ render pan frames with `--crop` from a script).
 | `Ctrl+Shift+O` | Open one of the recent images |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save to the target directory / save with a file picker |
 | `F5` | Convert / play preview |
-| `F6` | Cycle the result view: preview → HAM map → error map |
+| `F6` | Cycle the result view: preview → HAM map → error map → original |
+| `F7` | Original ↔ the view before |
 | `Esc` | Cancel the running conversion or export |
 | `Ctrl+L` / `Ctrl+R` | Rotate the source left / right |
 | `Ctrl+Shift+H` / `Ctrl+Shift+V` | Mirror the source horizontally / vertically |
@@ -239,7 +249,9 @@ The C++ namespace and include prefix are `aic` for historical reasons. Ditherers
 color-focus maps register themselves at program start-up, so an executable must link the static
 library with every object file included; `cmake/AicWholeArchive.cmake` provides
 `aic_link_whole_archive(<target> renderhamlib)` for that. The library API is not stable yet (see
-[Versioning](#versioning)).
+[Versioning](#versioning)). `aic::canvas_mapping()` (`aic/canvas_mapping.hpp`) gives the position of a
+source point on the converted canvas and back, for crop box, fit/fill/stretch and pixel aspect – what
+a viewer needs to show source and result in step.
 
 ### Good to know
 
@@ -247,7 +259,8 @@ library with every object file included; `cmake/AicWholeArchive.cmake` provides
 * The files are standard IFF ILBM, but **no test on real Amiga hardware or in an Amiga emulator
   is documented yet**. The output is verified with an independent decoder and with netpbm's
   `ilbmtoppm` (see [Testing](#testing)).
-* There is no batch mode and no live preview on every slider move – you press *Convert* (`F5`).
+* There is no batch mode. The preview is made when you press *Convert* (`F5`) or, with the *Auto preview*
+  toggle on, a moment after a setting changed – not continuously while a slider moves.
 * The animation features are part of the GUI; the command line converts single pictures.
 
 ---
@@ -298,10 +311,11 @@ Try it:
 cd build && ctest --output-on-failure
 ```
 
-Ten test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
+Eleven test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
 animation sequences and timing, dither anchoring, the quality figures (the latter against
-values computed independently with NumPy), the readable image formats, the palette file formats
-and the quality profiles. Beyond ctest, the Python tools in `testdata/` check
+values computed independently with NumPy), the readable image formats, the palette file formats,
+the quality profiles and the map from source to canvas that keeps the GUI's two views in step
+(checked against where the pipeline really puts a marker). Beyond ctest, the Python tools in `testdata/` check
 the output files: `verify_ilbm.py` parses an IFF file independently of the C++ code, and
 `decode_ham6_independent.py` is a from-scratch HAM6 decoder whose result is compared pixel by
 pixel with the tool's own preview. `scripts/ham_eval.py` compares settings objectively
