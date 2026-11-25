@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
+#
+# Flatpak manifest for renderHAM (GUI renderHAMgui and command-line tool renderHAM).
+#
+# Build locally (needs flatpak and flatpak-builder, plus the GNOME runtime and SDK from Flathub):
+#   flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50
+#   flatpak-builder --user --install --force-clean build-dir packaging/linux/flatpak/io.github.ravvbit.renderham.yml
+#   flatpak run io.github.ravvbit.renderham
+# The command-line tool is available from the same package:
+#   flatpak run --command=renderHAM io.github.ravvbit.renderham --help
+#
+# The GNOME runtime provides GTK 3, which wxWidgets' GTK port needs; wxWidgets itself is not
+# part of any runtime, so it is built from source below. The release tarball's SHA-256 was
+# computed from the download of the GitHub release asset; update url and sha256 together.
+app-id: io.github.ravvbit.renderham
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: renderHAMgui
+
+finish-args:
+  # X11 only as a fallback; GTK3 + Wayland works for this application.
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  # The application opens images from, and writes HAM/ANIM files next to, arbitrary folders
+  # of the user's choosing. Narrow this (for example to xdg-pictures) if the portal file
+  # dialogs turn out to cover all uses.
+  - --filesystem=home
+
+modules:
+  - name: wxwidgets
+    # Only the libraries renderHAMgui links (base, core) plus what they pull in are needed;
+    # the optional libraries are switched off to keep the build short and the runtime small.
+    config-opts:
+      - --with-gtk=3
+      - --enable-unicode
+      - --disable-tests
+      - --disable-stc
+      - --disable-richtext
+      - --disable-ribbon
+      - --disable-propgrid
+      - --disable-aui
+      - --disable-xrc
+      - --disable-html
+      - --disable-htmlhelp
+      - --disable-webview
+      - --disable-mediactrl
+      - --disable-secretstore
+      - --without-opengl
+      - --without-libnotify
+      - --without-sdl
+      - --without-libmspack
+      - --without-gnomevfs
+    sources:
+      - type: archive
+        url: https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.12/wxWidgets-3.2.12.tar.bz2
+        sha256: a62719bb5e1dcc41c1a6fc1eecd499c7ee8521f70402c7b1bb3342a1e16344e0
+    post-install:
+      # The compiled library is part of the package, so its license texts are too.
+      - mkdir -p /app/share/doc/wxWidgets
+      - install -m644 docs/licence.txt docs/lgpl.txt docs/gpl.txt docs/preamble.txt /app/share/doc/wxWidgets/
+    cleanup:
+      # Development files; the renderham module below still sees them while it builds.
+      - /bin/wx-config
+      - /include
+      - /lib/wx/include
+      - /lib/wx/config
+      - /share/aclocal
+      - /share/bakefile
+
+  - name: renderham
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      # The checkout this manifest lives in (packaging/linux/flatpak/ -> repository root).
+      - type: dir
+        path: ../../..
+        skip:
+          - .git
+          - .flatpak-builder
+          - build
+          - build-appimage
+          - build-dir
+          - dist
+          - flatpak_app
+          - repo
+    cleanup:
+      # renderhamlib is linked statically into the executables; its headers and archive are
+      # for developers only.
+      - /include
+      - /lib/librenderhamlib.a

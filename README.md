@@ -282,7 +282,15 @@ sudo cmake --install build --prefix /usr/local
 installs the two programs (the GUI translation is placed next to the GUI executable, where it
 looks for it), the library and its headers.
 
-### Debian package
+### Linux packages
+
+`.github/workflows/linux-packages.yml` builds and tests renderHAM on GitHub and packages it for
+x86_64 Linux in three formats. Every push to `main` and every pull request produces them as
+workflow artifacts; pushing a version tag (`v0.2.0`, ...) also drafts a GitHub release with all
+three files and a `SHA256SUMS` list. You can build each one yourself as well:
+
+**Debian package** (command-line tool and GUI; built on Ubuntu 24.04, so it depends on that
+release's library package names: it targets Ubuntu 24.04 and newer, probably also Debian 13):
 
 ```bash
 sudo apt install dpkg-dev                # help2man and lintian are used if present
@@ -292,7 +300,33 @@ sudo apt install ./dist/renderham_*.deb
 
 The script builds the project, works out the run-time dependencies with `dpkg-shlibdeps`,
 generates man pages and writes the package to `dist/`. The package version is the one
-defined in `CMakeLists.txt`.
+defined in `CMakeLists.txt`. The package also installs a menu entry and an icon.
+
+**AppImage** (the GUI as one file that runs without installation):
+
+```bash
+sudo apt install libwxgtk3.2-dev libgtk-3-dev librsvg2-dev pkg-config gettext curl file desktop-file-utils
+./scripts/build_appimage.sh
+chmod +x dist/renderHAM-*-x86_64.AppImage && ./dist/renderHAM-*-x86_64.AppImage
+```
+
+The script downloads linuxdeploy and appimagetool (checked against pinned SHA-256 sums) and
+bundles wxWidgets and the GTK stack into the image. An AppImage needs a C library at least as
+new as the one it was built with, so the one built on Ubuntu 24.04 runs on distributions with
+glibc 2.39 or newer. The command-line tool is not part of the AppImage.
+
+**Flatpak** (the GUI and the command-line tool, sandboxed; builds wxWidgets from source on the
+GNOME runtime, which takes a while):
+
+```bash
+flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50
+flatpak-builder --user --install --force-clean build-dir packaging/linux/flatpak/io.github.ravvbit.renderham.yml
+flatpak run io.github.ravvbit.renderham
+flatpak run --command=renderHAM io.github.ravvbit.renderham --help
+```
+
+The desktop entry, the AppStream metadata and the (placeholder) icon live in `packaging/linux/`;
+all three packages use them.
 
 ### Other platforms
 
@@ -319,10 +353,12 @@ tools/renderham/     command-line tool
 tools/renderhamgui/  wxWidgets GUI (with po/ translations)
 tests/               ctest programs
 testdata/            small synthetic test pictures and independent verification scripts
-scripts/             Debian packaging, icon generators, evaluation and translation helpers
+scripts/             Debian and AppImage packaging, icon generators, evaluation and translation helpers
+packaging/linux/     desktop entry, AppStream metadata, icon and the Flatpak manifest
+.github/workflows/   GitHub Actions: build, test and package for Linux
 third_party/stb/     vendored single-file libraries
 cmake/               CMake helper for the self-registering components
-docs/                images for this README and a historical (German) development log
+docs/                images for this README
 ```
 
 ## Versioning
@@ -331,7 +367,9 @@ renderHAM uses [Semantic Versioning](https://semver.org). The version is defined
 `project()` call of the top-level `CMakeLists.txt`, and flows from there into
 `renderHAM --version`, the GUI's About dialog and the Debian package. The library, the command
 line tool and the GUI share one version number. Releases are tagged `vMAJOR.MINOR.PATCH`;
-[`CHANGELOG.md`](CHANGELOG.md) lists what changed.
+[`CHANGELOG.md`](CHANGELOG.md) lists what changed. To release: bump the version, add a
+`<release>` entry to `packaging/linux/io.github.ravvbit.renderham.metainfo.xml` and a section to
+the changelog, then push the tag; the workflow checks that all of them agree.
 
 The current series is **0.x**: the program is usable, but command-line options, the GUI's
 saved settings and the C++ API may still change between minor versions. Version 1.0.0 will
@@ -366,8 +404,10 @@ Third-party components and their licenses are listed in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). In short: the bundled stb libraries are
 MIT/public domain, and wxWidgets (used only by the GUI, installed separately) is under the
 wxWindows Library Licence, which explicitly allows programs under other licenses to link it.
-The two example photos in `docs/images/example.png` are CC0 / public-domain sample images
-from scikit-image (cat photo by Stefan van der Walt, coffee photo by Rachel Michetti, both CC0).
+The two example photos in `docs/images/example.png` (and the cat photo in the GUI screenshot
+`docs/images/gui.png`) are sample images from scikit-image, released as CC0 by their photographers:
+the cat photo by Stefan van der Walt, the coffee photo by Rachel Michetti (courtesy of Pikolo
+Espresso Bar). See the [scikit-image data documentation](https://scikit-image.org/docs/stable/api/skimage.data.html).
 
 "Amiga", "Deluxe Paint" and other product names are trademarks of their respective owners.
 renderHAM is an independent project and is not affiliated with or endorsed by them.

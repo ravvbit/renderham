@@ -32,6 +32,20 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS renderHAMgui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+# Desktop integration on Linux/BSD: menu entry, icon and AppStream metadata. The .deb, the
+# AppImage and the Flatpak all pick these up through "cmake --install"; the file names are
+# the application ID (reverse-DNS), which Flatpak requires. See packaging/linux/.
+if (UNIX AND NOT APPLE)
+    set(AIC_APP_ID io.github.ravvbit.renderham)
+    set(AIC_PACKAGING_DIR ${PROJECT_SOURCE_DIR}/packaging/linux)
+    install(FILES ${AIC_PACKAGING_DIR}/${AIC_APP_ID}.desktop
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+    install(FILES ${AIC_PACKAGING_DIR}/${AIC_APP_ID}.metainfo.xml
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+    install(FILES ${AIC_PACKAGING_DIR}/${AIC_APP_ID}.svg
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+endif()
+
 # Compiles po/<lang>.po -> translations/<lang>/LC_MESSAGES/renderhamgui.mo next
 # to the built executable (see Localization.cpp for the runtime lookup).
 # Adding a new language later is just "drop another .po file in po/,

@@ -1,0 +1,212 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
+#
+# Builds renderHAM for x86_64 Linux and packages it three ways: Debian package (.deb), AppImage and
+# Flatpak. On every push to main and on pull requests the packages are built and offered as workflow
+# artifacts; a version tag (v0.2.0, ...) additionally creates a draft GitHub release with all of them.
+#
+# Releasing: bump the version in CMakeLists.txt, add a <release> entry to
+# packaging/linux/io.github.ravvbit.renderham.metainfo.xml and a section to CHANGELOG.md, commit, then
+#   git tag -a v0.2.0 -m "renderHAM 0.2.0" && git push origin v0.2.0
+# The release is created as a draft; review it on GitHub and publish it there.
+#
+# Actions are pinned to commit SHAs (the comment names the version); update them deliberately.
+name: Linux packages
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a release build half-way through.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  check:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ gettext libwxgtk3.2-dev desktop-file-utils appstream
+
+      - name: Validate the desktop entry and the AppStream metadata
+        run: |
+          desktop-file-validate packaging/linux/io.github.ravvbit.renderham.desktop
+          appstreamcli validate --no-net --pedantic packaging/linux/io.github.ravvbit.renderham.metainfo.xml
+
+      - name: Check that tag, CMake version, AppStream release and changelog agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          cmake_version="$(sed -n 's/^project(renderham VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)"
+          meta_version="$(sed -n 's/.*<release version="\([^"]*\)".*/\1/p' \
+                          packaging/linux/io.github.ravvbit.renderham.metainfo.xml | head -n 1)"
+          status=0
+          [ "$tag_version" = "$cmake_version" ] || { echo "::error::tag is $tag_version but CMakeLists.txt says $cmake_version"; status=1; }
+          [ "$tag_version" = "$meta_version" ] || { echo "::error::tag is $tag_version but the newest AppStream <release> is $meta_version"; status=1; }
+          grep -q "^## \[$tag_version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $tag_version"; status=1; }
+          exit "$status"
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  deb:
+    name: Debian package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # Goes into the package's control file; change it to your preferred name and address.
+      DEB_MAINTAINER: "rawbit <359580139+ravvbit@users.noreply.github.com>"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ binutils gettext libwxgtk3.2-dev dpkg-dev help2man lintian xvfb desktop-file-utils
+
+      - name: Build the package
+        run: ./scripts/build_deb.sh
+
+      - name: Install the package and start the programs
+        run: |
+          sudo apt-get install -y ./dist/renderham_*_amd64.deb
+          renderHAM --version
+          desktop-file-validate /usr/share/applications/io.github.ravvbit.renderham.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/io.github.ravvbit.renderham.svg
+          status=0
+          timeout 10 xvfb-run -a renderHAMgui || status=$?
+          # 124 means: still running when the timeout stopped it, i.e. it started fine.
+          [ "$status" -eq 124 ] || { echo "::error::renderHAMgui exited early with status $status"; exit 1; }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deb
+          path: dist/renderham_*_amd64.deb
+          if-no-files-found: error
+
+  appimage:
+    name: AppImage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ gettext libwxgtk3.2-dev libgtk-3-dev librsvg2-dev pkg-config \
+            curl file desktop-file-utils xvfb
+
+      - name: Build the AppImage
+        run: ./scripts/build_appimage.sh
+
+      - name: Start the AppImage
+        env:
+          # The runner has no FUSE; let the AppImage unpack itself instead.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          status=0
+          timeout 15 xvfb-run -a ./dist/renderHAM-*-x86_64.AppImage || status=$?
+          [ "$status" -eq 124 ] || { echo "::error::the AppImage exited early with status $status"; exit 1; }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: appimage
+          path: dist/renderHAM-*-x86_64.AppImage
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      # Has flatpak-builder and the GNOME runtime tooling; the tag matches runtime-version in the manifest.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+        with:
+          manifest-path: packaging/linux/flatpak/io.github.ravvbit.renderham.yml
+          bundle: renderHAM-x86_64.flatpak
+          arch: x86_64
+          # The cache keeps the wxWidgets build (the slow part) between runs.
+          cache-key: flatpak-builder-${{ hashFiles('packaging/linux/flatpak/io.github.ravvbit.renderham.yml') }}
+          artifact-name: flatpak
+
+  release:
+    name: Draft release
+    needs: [check, deb, appimage, flatpak]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # create the release and upload its files
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Name the files and write checksums
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cd release
+          mv renderHAM-x86_64.flatpak "renderHAM-${version}-x86_64.flatpak"
+          sha256sum -- * > SHA256SUMS
+          ls -l
+
+      - name: Write the release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            # The changelog section of this version (Keep a Changelog format).
+            awk -v h="## [${version}]" 'index($0, h) == 1 { found = 1; next } /^## \[/ { found = 0 } found' CHANGELOG.md
+            echo
+            echo "### Downloads (x86_64 Linux)"
+            echo
+            echo "- \`renderham_${version}_amd64.deb\`: command-line tool and GUI, built on Ubuntu 24.04, for Ubuntu 24.04 and newer (\`sudo apt install ./renderham_${version}_amd64.deb\`)"
+            echo "- \`renderHAM-${version}-x86_64.AppImage\`: the GUI as a single file (\`chmod +x\`, then run); needs glibc 2.39 or newer"
+            echo "- \`renderHAM-${version}-x86_64.flatpak\`: the GUI and the command-line tool as a Flatpak (\`flatpak install --user renderHAM-${version}-x86_64.flatpak\`)"
+            echo "- \`SHA256SUMS\`: checksums of the files above"
+            echo
+            echo "This is AI-generated software: the code was written by Claude (Anthropic) under the direction of rawbit (@ravvbit). See the README."
+          } > notes.md
+          cat notes.md
+
+      - name: Create the draft release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME exists already, only updating its files."
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+              --title "renderHAM ${GITHUB_REF_NAME#v}" --notes-file notes.md
+          fi
+          gh release upload "$GITHUB_REF_NAME" release/* --clobber
