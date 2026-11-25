@@ -11,6 +11,7 @@
 // jobs" block below for the rules.
 
 #include <wx/wx.h>
+#include <wx/filehistory.h>
 
 #include <atomic>
 #include <functional>
@@ -37,6 +38,16 @@ private:
     void Init();
     void LoadImage(const wxString& path);
     void OnOpen(wxCommandEvent&);
+    // "Recent" list (the last few images that were opened, most recent first). It lives in the
+    // configuration under /RecentFiles and is pruned of files that no longer exist whenever the
+    // menu is about to be shown, not at startup (a vanished network share must not delay it).
+    void LoadRecentFiles();
+    void SaveRecentFiles();
+    void RememberFile(const wxString& path);  // moves/puts `path` to the top
+    void ForgetFile(const wxString& path);    // drops `path` (it vanished or cannot be read)
+    void ShowRecentMenu();                    // popup below the "Recent" button (also Ctrl+Shift+O)
+    void OnRecentFile(wxCommandEvent& event);
+    void UpdateInputLabel();                  // file name, size and full path (as tooltip) of the loaded picture
     void OnAbout(wxCommandEvent&);
     void OnSaveAs(wxCommandEvent&);
     void OnTargetDirectory(wxCommandEvent&);
@@ -118,6 +129,8 @@ private:
     std::optional<aic::PreviewResult> last_preview_;
 
     wxStaticText* input_label_ = nullptr;
+    wxButton* recent_btn_ = nullptr;
+    std::unique_ptr<wxFileHistory> recent_files_;
     wxButton* target_dir_btn_ = nullptr;
     wxButton* save_quick_btn_ = nullptr;
     wxButton* save_as_btn_ = nullptr;

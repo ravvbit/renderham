@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: renderHAM 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-23 17:41+0100\n"
+"POT-Creation-Date: 2026-11-25 14:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,7 +15,7 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: AboutDialog.cpp:8 MainFrame.cpp:306
+#: AboutDialog.cpp:8 MainFrame.cpp:365
 msgid "About"
 msgstr ""
 
@@ -86,7 +86,7 @@ msgstr ""
 msgid "Add keyframe"
 msgstr ""
 
-#: AboutDialog.cpp:56 MainFrame.cpp:1002
+#: AboutDialog.cpp:56 MainFrame.cpp:1157
 msgid "Quit"
 msgstr ""
 
@@ -98,83 +98,99 @@ msgstr ""
 msgid "Zoom preview to fit / 100%"
 msgstr ""
 
-#: MainFrame.cpp:126
+#: MainFrame.cpp:110
+msgid "Images"
+msgstr ""
+
+#: MainFrame.cpp:110
+msgid "All Files"
+msgstr ""
+
+#: MainFrame.cpp:178
 msgid "Zoom"
 msgstr ""
 
-#: MainFrame.cpp:137
+#: MainFrame.cpp:189
 msgid "Show at 100% (one picture pixel per screen pixel)"
 msgstr ""
 
-#: MainFrame.cpp:138
+#: MainFrame.cpp:190
 msgid "Fit the whole picture into the window"
 msgstr ""
 
-#: MainFrame.cpp:139
+#: MainFrame.cpp:191
 msgid "Zoom out"
 msgstr ""
 
-#: MainFrame.cpp:140
+#: MainFrame.cpp:192
 msgid "Zoom in"
 msgstr ""
 
-#: MainFrame.cpp:165
+#: MainFrame.cpp:217
 msgid "Open..."
 msgstr ""
 
-#: MainFrame.cpp:166
+#: MainFrame.cpp:218
 msgid "Open an image (Ctrl+O)"
 msgstr ""
 
-#: MainFrame.cpp:167
-msgid "(no file loaded - or drag an image here)"
+#: MainFrame.cpp:219
+msgid "Recent"
 msgstr ""
 
-#: MainFrame.cpp:168
-msgid "Target directory..."
-msgstr ""
-
-#: MainFrame.cpp:169 MainFrame.cpp:568
-msgid "Save"
-msgstr ""
-
-#: MainFrame.cpp:170
-msgid "Save to the target directory (Ctrl+S)"
-msgstr ""
-
-#: MainFrame.cpp:171 MainFrame.cpp:569
-msgid "Save As..."
-msgstr ""
-
-#: MainFrame.cpp:172
-msgid "Save with a file picker (Ctrl+Shift+S)"
-msgstr ""
-
-#: MainFrame.cpp:195
-msgid "Source"
-msgstr ""
-
-#: MainFrame.cpp:198
-msgid "Amiga Preview (HAM6)"
-msgstr ""
-
-#: MainFrame.cpp:214
-msgid "Simulate interlace (half height)"
-msgstr ""
-
-#: MainFrame.cpp:221 ParameterPanel.cpp:235
-msgid "Preview"
-msgstr ""
-
-#: MainFrame.cpp:222
-msgid "HAM map"
+#: MainFrame.cpp:220
+msgid "Open one of the images opened before (Ctrl+Shift+O)"
 msgstr ""
 
 #: MainFrame.cpp:223
-msgid "Error map"
+msgid "(no file loaded - or drag an image here)"
 msgstr ""
 
 #: MainFrame.cpp:226
+msgid "Target directory..."
+msgstr ""
+
+#: MainFrame.cpp:227 MainFrame.cpp:723
+msgid "Save"
+msgstr ""
+
+#: MainFrame.cpp:228
+msgid "Save to the target directory (Ctrl+S)"
+msgstr ""
+
+#: MainFrame.cpp:229 MainFrame.cpp:724
+msgid "Save As..."
+msgstr ""
+
+#: MainFrame.cpp:230
+msgid "Save with a file picker (Ctrl+Shift+S)"
+msgstr ""
+
+#: MainFrame.cpp:254
+msgid "Source"
+msgstr ""
+
+#: MainFrame.cpp:257
+msgid "Amiga Preview (HAM6)"
+msgstr ""
+
+#: MainFrame.cpp:273
+msgid "Simulate interlace (half height)"
+msgstr ""
+
+#: MainFrame.cpp:280 ParameterPanel.cpp:235
+msgid "Preview"
+msgstr ""
+
+#: MainFrame.cpp:281
+msgid "HAM map"
+msgstr ""
+
+#: MainFrame.cpp:282
+msgid "Error map"
+msgstr ""
+
+#: MainFrame.cpp:285
 msgid ""
 "What the preview shows: the decoded HAM6 result, a map of the HAM operation "
 "used for each pixel (black = Select, red/green/blue = Modify R/G/B), or an "
@@ -183,31 +199,31 @@ msgid ""
 "the single-frame preview, not while an animation plays."
 msgstr ""
 
-#: MainFrame.cpp:246
+#: MainFrame.cpp:305
 msgid "Rotate the source 90 degrees to the left (Ctrl+L)"
 msgstr ""
 
-#: MainFrame.cpp:247
+#: MainFrame.cpp:306
 msgid "Rotate the source 90 degrees to the right (Ctrl+R)"
 msgstr ""
 
-#: MainFrame.cpp:248
+#: MainFrame.cpp:307
 msgid "Mirror the source left to right (Ctrl+Shift+H)"
 msgstr ""
 
-#: MainFrame.cpp:249
+#: MainFrame.cpp:308
 msgid "Mirror the source top to bottom (Ctrl+Shift+V)"
 msgstr ""
 
-#: MainFrame.cpp:286
+#: MainFrame.cpp:345
 msgid "Save current settings"
 msgstr ""
 
-#: MainFrame.cpp:287
+#: MainFrame.cpp:346
 msgid "Settings..."
 msgstr ""
 
-#: MainFrame.cpp:293
+#: MainFrame.cpp:352
 msgid ""
 "After a conversion: error = mean OKLab distance per pixel (lower is better); "
 "blurred = the same after blurring both pictures a little (sigma 1.5 px), the "
@@ -218,243 +234,254 @@ msgid ""
 "picture."
 msgstr ""
 
-#: MainFrame.cpp:301
+#: MainFrame.cpp:360
 msgid "Cancel"
 msgstr ""
 
-#: MainFrame.cpp:302
+#: MainFrame.cpp:361
 msgid "Stop the running conversion (Esc)"
 msgstr ""
 
-#: MainFrame.cpp:399
+#: MainFrame.cpp:450
+msgid "List of recent images cleared"
+msgstr ""
+
+#: MainFrame.cpp:474
 msgid "Source rotated to the left"
 msgstr ""
 
-#: MainFrame.cpp:400
+#: MainFrame.cpp:475
 msgid "Source rotated to the right"
 msgstr ""
 
-#: MainFrame.cpp:401
+#: MainFrame.cpp:476
 msgid "Source mirrored left to right"
 msgstr ""
 
-#: MainFrame.cpp:402
+#: MainFrame.cpp:477
 msgid "Source mirrored top to bottom"
 msgstr ""
 
-#: MainFrame.cpp:524 MainFrame.cpp:547
-#, c-format
-msgid "%s  (%dx%d)"
-msgstr ""
-
-#: MainFrame.cpp:538
+#: MainFrame.cpp:613
 #, c-format
 msgid "Failed to load: %s"
 msgstr ""
 
-#: MainFrame.cpp:538 MainFrame.cpp:754 MainFrame.cpp:758 MainFrame.cpp:770
-#: MainFrame.cpp:854 MainFrame.cpp:1148 MainFrame.cpp:1186
+#: MainFrame.cpp:613 MainFrame.cpp:715 MainFrame.cpp:909 MainFrame.cpp:913
+#: MainFrame.cpp:925 MainFrame.cpp:1009 MainFrame.cpp:1303 MainFrame.cpp:1341
 #: ParameterPanel.cpp:683 ParameterPanel.cpp:713
 msgid "Error"
 msgstr ""
 
-#: MainFrame.cpp:554
+#: MainFrame.cpp:630
 #, c-format
 msgid "Source: %dx%d"
 msgstr ""
 
-#: MainFrame.cpp:560
+#: MainFrame.cpp:641
 msgid "Open Image"
 msgstr ""
 
-#: MainFrame.cpp:561
-msgid ""
-"Images (*.png;*.jpg;*.jpeg;*.bmp;*.tga)|*.png;*.jpg;*.jpeg;*.bmp;*.tga|All "
-"Files|*.*"
+#: MainFrame.cpp:648
+#, c-format
+msgid "%s  (%dx%d)"
 msgstr ""
 
-#: MainFrame.cpp:568
+#: MainFrame.cpp:700
+msgid "(no recent images)"
+msgstr ""
+
+#: MainFrame.cpp:705
+msgid "Clear list"
+msgstr ""
+
+#: MainFrame.cpp:715
+#, c-format
+msgid "The file no longer exists: %s"
+msgstr ""
+
+#: MainFrame.cpp:723
 msgid "Export Animation"
 msgstr ""
 
-#: MainFrame.cpp:569
+#: MainFrame.cpp:724
 msgid "Export Animation As..."
 msgstr ""
 
-#: MainFrame.cpp:661 MainFrame.cpp:808
+#: MainFrame.cpp:816 MainFrame.cpp:963
 msgid ""
 "Animation needs at least 2 keyframes - use \"Add keyframe\" in the Rendering "
 "box."
 msgstr ""
 
-#: MainFrame.cpp:662 MainFrame.cpp:809 MainFrame.cpp:931 MainFrame.cpp:959
-#: MainFrame.cpp:963 MainFrame.cpp:1078 MainFrame.cpp:1123
+#: MainFrame.cpp:817 MainFrame.cpp:964 MainFrame.cpp:1086 MainFrame.cpp:1114
+#: MainFrame.cpp:1118 MainFrame.cpp:1233 MainFrame.cpp:1278
 msgid "Notice"
 msgstr ""
 
-#: MainFrame.cpp:665
+#: MainFrame.cpp:820
 msgid "Generating animation..."
 msgstr ""
 
-#: MainFrame.cpp:710
+#: MainFrame.cpp:865
 #, c-format
 msgid "Generating animation: frame %d/%d..."
 msgstr ""
 
-#: MainFrame.cpp:736
+#: MainFrame.cpp:891
 msgid "Writing animation file..."
 msgstr ""
 
-#: MainFrame.cpp:753
+#: MainFrame.cpp:908
 #, c-format
 msgid "Failed to write animation file: %s"
 msgstr ""
 
-#: MainFrame.cpp:756
+#: MainFrame.cpp:911
 #, c-format
 msgid "Failed to write frame %d: %s"
 msgstr ""
 
-#: MainFrame.cpp:760 MainFrame.cpp:771
+#: MainFrame.cpp:915 MainFrame.cpp:926
 msgid "Export failed."
 msgstr ""
 
-#: MainFrame.cpp:764
+#: MainFrame.cpp:919
 msgid "Export cancelled."
 msgstr ""
 
-#: MainFrame.cpp:768 MainFrame.cpp:852
+#: MainFrame.cpp:923 MainFrame.cpp:1007
 #, c-format
 msgid "Animation frame %d failed: %s"
 msgstr ""
 
-#: MainFrame.cpp:776
+#: MainFrame.cpp:931
 #, c-format
 msgid "Animation exported: %d frames to %s.anim"
 msgstr ""
 
-#: MainFrame.cpp:778
+#: MainFrame.cpp:933
 #, c-format
 msgid "Animation exported: %d frames to %s"
 msgstr ""
 
-#: MainFrame.cpp:788 MainFrame.cpp:848 MainFrame.cpp:1144
+#: MainFrame.cpp:943 MainFrame.cpp:1003 MainFrame.cpp:1299
 msgid "Cancelled."
 msgstr ""
 
-#: MainFrame.cpp:812
+#: MainFrame.cpp:967
 msgid "Building preview..."
 msgstr ""
 
-#: MainFrame.cpp:839
+#: MainFrame.cpp:994
 #, c-format
 msgid "Building preview: frame %d/%d..."
 msgstr ""
 
-#: MainFrame.cpp:855
+#: MainFrame.cpp:1010
 msgid "Preview failed."
 msgstr ""
 
-#: MainFrame.cpp:872
+#: MainFrame.cpp:1027
 msgid "Playing animation preview..."
 msgstr ""
 
-#: MainFrame.cpp:931 MainFrame.cpp:959 MainFrame.cpp:1123
+#: MainFrame.cpp:1086 MainFrame.cpp:1114 MainFrame.cpp:1278
 msgid "Please open an image first."
 msgstr ""
 
-#: MainFrame.cpp:934
+#: MainFrame.cpp:1089
 msgid "Save IFF As"
 msgstr ""
 
-#: MainFrame.cpp:934 ParameterPanel.cpp:676 ParameterPanel.cpp:693
+#: MainFrame.cpp:1089 ParameterPanel.cpp:676 ParameterPanel.cpp:693
 msgid "Amiga IFF ILBM (*.iff)|*.iff"
 msgstr ""
 
-#: MainFrame.cpp:947
+#: MainFrame.cpp:1102
 msgid "Select Target Directory"
 msgstr ""
 
-#: MainFrame.cpp:954
+#: MainFrame.cpp:1109
 #, c-format
 msgid "Target directory set: %s"
 msgstr ""
 
-#: MainFrame.cpp:963
+#: MainFrame.cpp:1118
 msgid "Please select a target directory first."
 msgstr ""
 
-#: MainFrame.cpp:982
+#: MainFrame.cpp:1137
 msgid "No target directory selected yet."
 msgstr ""
 
-#: MainFrame.cpp:1002
+#: MainFrame.cpp:1157
 msgid "An export is still running. Cancel it and quit?"
 msgstr ""
 
-#: MainFrame.cpp:1039
+#: MainFrame.cpp:1194
 msgid "Current settings saved as defaults."
 msgstr ""
 
-#: MainFrame.cpp:1076
+#: MainFrame.cpp:1231
 msgid ""
 "Could not restart automatically. Please restart the application manually for "
 "the new language to take effect."
 msgstr ""
 
-#: MainFrame.cpp:1126
+#: MainFrame.cpp:1281
 msgid "Converting..."
 msgstr ""
 
-#: MainFrame.cpp:1148
+#: MainFrame.cpp:1303
 #, c-format
 msgid "Conversion failed: %s"
 msgstr ""
 
-#: MainFrame.cpp:1150
+#: MainFrame.cpp:1305
 msgid "Conversion failed."
 msgstr ""
 
-#: MainFrame.cpp:1157
+#: MainFrame.cpp:1312
 #, c-format
 msgid "%dx%d  error=%.4f  blurred=%.4f  SSIM=%.3f  LACE=%s"
 msgstr ""
 
-#: MainFrame.cpp:1160 MainFrame.cpp:1192
+#: MainFrame.cpp:1315 MainFrame.cpp:1347
 msgid "on"
 msgstr ""
 
-#: MainFrame.cpp:1160 MainFrame.cpp:1192
+#: MainFrame.cpp:1315 MainFrame.cpp:1347
 msgid "off"
 msgstr ""
 
-#: MainFrame.cpp:1165
+#: MainFrame.cpp:1320
 msgid "Saving..."
 msgstr ""
 
-#: MainFrame.cpp:1182
+#: MainFrame.cpp:1337
 msgid "Saving cancelled."
 msgstr ""
 
-#: MainFrame.cpp:1186
+#: MainFrame.cpp:1341
 #, c-format
 msgid "Failed to save: %s"
 msgstr ""
 
-#: MainFrame.cpp:1188
+#: MainFrame.cpp:1343
 msgid "Saving failed."
 msgstr ""
 
-#: MainFrame.cpp:1191
+#: MainFrame.cpp:1346
 #, c-format
 msgid "Saved: %s (error=%.4f, LACE=%s)"
 msgstr ""
 
-#: MainFrame.cpp:1200
+#: MainFrame.cpp:1355
 msgid "Export running - Esc cancels it."
 msgstr ""
 
-#: MainFrame.cpp:1253
+#: MainFrame.cpp:1408
 msgid "Cancelling..."
 msgstr ""
 

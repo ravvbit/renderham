@@ -58,3 +58,14 @@ target_compile_definitions(test_quality_metrics PRIVATE
     RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata"
     RENDERHAM_TMPDIR="${CMAKE_CURRENT_BINARY_DIR}")
 add_test(NAME quality_metrics COMMAND test_quality_metrics)
+
+# The image formats Image::load() reads; also checks that the desktop entry of the Linux packages
+# (MimeType=) names the same formats.
+add_executable(test_formats test_formats.cpp)
+aic_link_whole_archive(test_formats renderhamlib)
+target_compile_features(test_formats PRIVATE cxx_std_17)
+target_compile_definitions(test_formats PRIVATE
+    RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata"
+    RENDERHAM_TMPDIR="${CMAKE_CURRENT_BINARY_DIR}"
+    RENDERHAM_DESKTOP_FILE="${CMAKE_SOURCE_DIR}/packaging/linux/io.github.ravvbit.renderham.desktop")
+add_test(NAME formats COMMAND test_formats)
