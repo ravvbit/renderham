@@ -13,18 +13,27 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **Windows and macOS builds in CI**: a GitHub Actions workflow (`.github/workflows/windows-macos.yml`)
-  builds the library, the command-line tool and the GUI and runs all tests on Windows (MinGW-w64,
-  MSYS2 UCRT64) and on macOS (a universal build for Intel and Apple Silicon; wxWidgets 3.2.12 built
-  from source and cached). The tests run the Intel part on an Intel runner; the Apple Silicon part is
-  compiled and linked but not run. The GUI is built and linked but not started; nobody has run it on
-  those systems yet.
-- renderHAMgui is a windowed program (no console window) on Windows and an application bundle,
-  `renderHAMgui.app` (with `Info.plist` and the translation in `Contents/Resources`), on macOS.
+- **Windows and macOS packages**: `renderHAM-<version>-windows-x64.zip` (the GUI, the command-line
+  tool, the DLLs they need and the German translation) and `renderHAM-<version>-macos-universal.dmg`
+  (`renderHAM.app` for Intel Macs and Apple Silicon, macOS 11 or newer, plus the command-line tool).
+  Built by `scripts/package_windows.sh` and `scripts/package_macos.sh`; neither is signed, and a
+  `README.txt` inside explains the SmartScreen and Gatekeeper warnings.
+- **Windows and macOS builds in CI**: one workflow, `.github/workflows/build.yml`, now builds, tests and
+  packages for Linux, Windows (MinGW-w64, MSYS2 UCRT64) and macOS (a universal build for Intel and
+  Apple Silicon; wxWidgets 3.2.12 built from source and cached). It unpacks the finished ZIP and disk
+  image, runs the command-line tool, converts to a file with a non-ASCII name and starts the GUI with
+  a picture; the screenshots are kept as workflow artifacts. The tests run the Intel part of the
+  macOS program on an Intel runner; the Apple Silicon part is compiled and linked but not run. A
+  version tag drafts a release with the Linux, Windows and macOS packages.
+- Application icon for Windows (`renderham.ico`, also in the title bar and the taskbar) and macOS
+  (`renderham.icns`), made from the Linux icon by `scripts/make_app_icons.py`.
+- renderHAMgui is a windowed program (no console window) on Windows, with a manifest for the modern
+  controls and per-monitor DPI, and an application bundle, `renderHAM.app` (with `Info.plist`, the icon
+  and the translation in `Contents/Resources`), on macOS.
 - New test `unicode_paths`: file names with non-ASCII characters in every place that opens a file.
-- **Linux packages**: a GitHub Actions workflow (`.github/workflows/linux-packages.yml`) builds, tests
-  and packages renderHAM for x86_64 Linux as a Debian package, an AppImage and a Flatpak, and drafts a
-  GitHub release with checksums when a version tag is pushed.
+- **Linux packages**: the workflow builds, tests and packages renderHAM for x86_64 Linux as a Debian
+  package, an AppImage and a Flatpak, and drafts a GitHub release with checksums when a version tag is
+  pushed.
 - `scripts/build_appimage.sh` (AppImage of the GUI) and `packaging/linux/flatpak/` (Flatpak manifest:
   wxWidgets 3.2.12 built from source on the GNOME 50 runtime).
 - Desktop integration on Linux: menu entry, AppStream metadata and a placeholder icon in

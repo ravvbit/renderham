@@ -245,12 +245,6 @@ jobs:
           $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
           $graphics.CopyFromScreen($area.Left, $area.Top, 0, 0, $bitmap.Size)
           $bitmap.Save("$PWD\screenshots\windows-gui.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          # TEMPORARY while the packages are being developed: the screenshot as text in this log.
-          $bitmap.Save("$PWD\screenshots\windows-gui.jpg", [System.Drawing.Imaging.ImageFormat]::Jpeg)
-          $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\screenshots\windows-gui.jpg"))
-          Write-Host "-----BEGIN SCREENSHOT $($area.Width)x$($area.Height)-----"
-          for ($i = 0; $i -lt $b64.Length; $i += 200) { Write-Host $b64.Substring($i, [Math]::Min(200, $b64.Length - $i)) }
-          Write-Host "-----END SCREENSHOT-----"
           if ($gui.HasExited) { throw "renderHAMgui.exe quit early with code $($gui.ExitCode)" }
           Stop-Process -Id $gui.Id -Force
 
@@ -359,9 +353,6 @@ jobs:
           sleep 12
           pgrep -x renderHAM && running=yes || running=no
           screencapture -x screenshots/macos-gui.png || echo "screencapture failed"
-          # TEMPORARY while the packages are being developed: the screenshot as text in this log.
-          sips -s format jpeg -s formatOptions 60 --resampleWidth 1280 screenshots/macos-gui.png --out screenshots/macos-gui.jpg || true
-          echo "-----BEGIN SCREENSHOT-----"; base64 < screenshots/macos-gui.jpg | fold -w 200; echo "-----END SCREENSHOT-----"
           pkill -x renderHAM || true
           hdiutil detach "$mnt" -quiet || true
           [ "$running" = yes ] || { echo "::error::renderHAM.app is not running"; exit 1; }
