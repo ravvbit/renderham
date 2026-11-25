@@ -43,6 +43,11 @@ struct RunResult {
 RunResult run_cli(const std::string& args) {
     RunResult r;
     std::string cmd = std::string("\"") + RENDERHAM_CLI + "\" " + args + " 2>&1";
+#ifdef _WIN32
+    // _popen() runs "cmd.exe /c <cmd>", and cmd.exe strips the first and the last quote of a line
+    // that has several quoted parts; an extra pair around the whole command keeps them.
+    cmd = "\"" + cmd + "\"";
+#endif
     FILE* pipe = POPEN(cmd.c_str(), "r");
     if (!pipe) return r;
     char buf[512];
