@@ -195,6 +195,9 @@ if [ -z "$destdir" ]; then
     fi
 fi
 
+# The tilde is meant literally: the name is only shown in the message below.
+# shellcheck disable=SC2088
 settings="~/.renderHAMgui"
+# shellcheck disable=SC2088
 [ "$(uname -s)" != Darwin ] || settings="~/Library/Preferences/renderHAMgui Preferences"
 echo "Removed ${#files[@]} files. Your saved settings ($settings) were left in place; delete that file by hand if you want them gone, too."
