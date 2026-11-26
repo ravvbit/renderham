@@ -13,7 +13,8 @@
 # installs them under share/licenses) go into the ZIP too: licenses/<package>/..., with
 # licenses/PACKAGES.txt saying which package, version, license and DLLs each is. The script stops
 # if a DLL has no package or a package has no license file, so that nothing is shipped without its
-# license text.
+# license text. (A package that has none of its own, like wxWidgets' -msw-libs, uses those of a
+# dependency with the same license, like -common-libs; PACKAGES.txt says so.)
 #
 # Run it in an MSYS2 UCRT64 shell after a build (see README.md, "Windows and macOS"); it needs
 # `zip` (pacman -S zip) and objdump (comes with the compiler).
@@ -96,29 +97,58 @@ done
     echo "named like the package without the mingw-w64-ucrt-x86_64- prefix); the program's own license"
     echo "is in LICENSE, and THIRD_PARTY_NOTICES.md in this ZIP file says more."
 } > "$LICENSES/PACKAGES.txt"
+# Copies the license files an MSYS2 package installs (under share/licenses) into the ZIP file's
+# licenses/ folder and prints how many there were.
+copy_license_files() {
+    local count=0 file rel
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        rel="${file#"$MSYSTEM_PREFIX"/share/licenses/}"
+        mkdir -p "$LICENSES/$(dirname "$rel")"
+        cp "$file" "$LICENSES/$rel"
+        count=$((count + 1))
+    done < <(pacman -Ql "$1" | awk '{print $2}' | grep "^$MSYSTEM_PREFIX/share/licenses/" || true)
+    echo "$count"
+}
+package_license() {
+    pacman -Qi "$1" | sed -n 's/^Licenses[[:space:]]*:[[:space:]]*//p'
+}
+# The installed packages another package depends on (without version constraints).
+package_dependencies() {
+    local dep
+    for dep in $(pacman -Qi "$1" | sed -n 's/^Depends On[[:space:]]*:[[:space:]]*//p'); do
+        dep="${dep%%[<>=]*}"
+        if [ "$dep" != "None" ]; then pacman -Qq "$dep" 2>/dev/null || true; fi
+    done
+}
 missing=""
 for package in $(printf '%s\n' "${!package_dlls[@]}" | sort); do
     version="$(pacman -Q "$package" | awk '{print $2}')"
     info="$(pacman -Qi "$package")"
     license="$(printf '%s\n' "$info" | sed -n 's/^Licenses[[:space:]]*:[[:space:]]*//p')"
     homepage="$(printf '%s\n' "$info" | sed -n 's/^URL[[:space:]]*:[[:space:]]*//p')"
-    texts=0
-    while IFS= read -r file; do
-        [ -f "$file" ] || continue
-        rel="${file#"$MSYSTEM_PREFIX"/share/licenses/}"
-        mkdir -p "$LICENSES/$(dirname "$rel")"
-        cp "$file" "$LICENSES/$rel"
-        texts=$((texts + 1))
-    done < <(pacman -Ql "$package" | awk '{print $2}' | grep "^$MSYSTEM_PREFIX/share/licenses/" || true)
+    texts="$(copy_license_files "$package")"
+    from=""
+    if [ "$texts" -eq 0 ]; then
+        # A package made from the same source as another one (wxWidgets: the -msw-libs package and
+        # the -common-libs package) may leave the license files to that one. Take them from a
+        # dependency that has the same license.
+        for dep in $(package_dependencies "$package"); do
+            [ "$(package_license "$dep")" = "$license" ] || continue
+            texts="$(copy_license_files "$dep")"
+            if [ "$texts" -gt 0 ]; then from="$dep"; break; fi
+        done
+    fi
     [ "$texts" -gt 0 ] || missing="$missing $package"
     {
         echo
         echo "$package $version"
         echo "    DLLs:      ${package_dlls[$package]# }"
         echo "    license:   $license"
+        [ -z "$from" ] || echo "    license texts: those of $from"
         echo "    home page: $homepage"
     } >> "$LICENSES/PACKAGES.txt"
-    echo "$package $version ($license): $texts license file(s), DLLs:${package_dlls[$package]}"
+    echo "$package $version ($license): $texts license file(s)${from:+ (from $from)}, DLLs:${package_dlls[$package]}"
 done
 if [ -n "$missing" ]; then
     echo "error: no license file found for the MSYS2 package(s):$missing" >&2
