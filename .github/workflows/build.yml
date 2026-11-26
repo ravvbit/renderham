@@ -177,6 +177,32 @@ jobs:
           cache-key: flatpak-builder-${{ hashFiles('packaging/linux/flatpak/io.github.ravvbit.renderham.yml') }}
           artifact-name: flatpak
 
+  # The oldest wxWidgets the GUI is meant to build with (the README says 3.0): the one of Ubuntu 22.04.
+  wx30:
+    name: Build with wxWidgets 3.0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: ubuntu:22.04
+    steps:
+      - name: Install tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git cmake make g++ gettext libwxgtk3.0-gtk3-dev ca-certificates
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Check that the GUI was built
+        run: test -x build/tools/renderhamgui/renderHAMgui && wx-config --version
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
   windows:
     name: Windows (MinGW-w64, UCRT)
     runs-on: windows-2025
