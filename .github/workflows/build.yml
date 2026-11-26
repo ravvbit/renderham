@@ -244,8 +244,11 @@ jobs:
           docker run --rm -v "$PWD/pkg:/pkg:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 "${{ matrix.image }}" bash -euxc '
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            # What a desktop system has anyway and an AppImage does not carry along.
-            apt-get install -y -qq --no-install-recommends xvfb xauth libx11-6 libxext6 libfontconfig1 libfreetype6 ca-certificates
+            # The AppImage brings the GTK stack but not what every desktop system has anyway: the X11 and
+            # Wayland client libraries, fonts and text shaping (fontconfig, FreeType, HarfBuzz, FriBidi)
+            # and the MIME database. This is that list and nothing more.
+            apt-get install -y -qq --no-install-recommends xvfb xauth libx11-6 libxext6 libfontconfig1 libfreetype6 \
+              libharfbuzz0b libfribidi0 libwayland-client0 shared-mime-info ca-certificates
             status=0
             timeout 15 xvfb-run -a /pkg/renderHAM-*-x86_64.AppImage || status=$?
             [ "$status" -eq 124 ]
