@@ -19,10 +19,15 @@
 # libgtk-3-dev, librsvg2-dev, pkg-config, curl, file, desktop-file-utils.
 #
 # The AppImage can only run where the C library is at least as new as the one it was built
-# against (glibc of the build machine); build on the oldest system you want to support.
+# against (glibc of the build machine); build on the oldest system you want to support. The
+# published AppImage is built on Ubuntu 22.04 (glibc 2.35) with a static wxWidgets 3.2, which that
+# release does not have; WX_CONFIG points the build at it.
 #
 # Usage:
 #   ./scripts/build_appimage.sh
+#
+# Environment variable:
+#   WX_CONFIG   path of the wx-config of the wxWidgets to build against (default: the system's)
 #
 # The result is dist/renderHAM-<version>-x86_64.AppImage
 
@@ -95,7 +100,12 @@ fetch "$RUNTIME_URL"      "$TOOLS_DIR/runtime-x86_64"               "$RUNTIME_SH
 
 echo ""
 echo "=== 2/5: configure + build (Release) ==="
-cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR/cmake" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+CMAKE_EXTRA=()
+if [ -n "${WX_CONFIG:-}" ]; then
+    CMAKE_EXTRA+=("-DwxWidgets_CONFIG_EXECUTABLE=$WX_CONFIG")
+fi
+cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR/cmake" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+    ${CMAKE_EXTRA[@]+"${CMAKE_EXTRA[@]}"}
 cmake --build "$BUILD_DIR/cmake" -j"$(nproc)"
 
 echo ""
@@ -106,6 +116,11 @@ DESTDIR="$APPDIR" cmake --install "$BUILD_DIR/cmake"
 rm -rf "$APPDIR/usr/include" "$APPDIR/usr/lib"
 # The command-line tool cannot be started from an AppImage; do not ship it dead weight.
 rm -f "$APPDIR/usr/bin/renderHAM"
+# A wxWidgets built by scripts/build_wx_linux.sh is part of renderHAMgui; its licence texts go with it.
+if [ -n "${WX_CONFIG:-}" ] && [ -d "$(dirname "$WX_CONFIG")/../share/doc/wxWidgets" ]; then
+    mkdir -p "$APPDIR/usr/share/doc/wxWidgets"
+    cp -p "$(dirname "$WX_CONFIG")"/../share/doc/wxWidgets/* "$APPDIR/usr/share/doc/wxWidgets/"
+fi
 
 echo ""
 echo "=== 4/5: collect libraries with linuxdeploy ==="

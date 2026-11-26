@@ -341,31 +341,50 @@ build each one yourself as well. Linux first, then [Windows and macOS](#windows-
 
 #### Linux
 
-**Debian package** (command-line tool and GUI; built on Ubuntu 24.04, so it depends on that
-release's library package names: it targets Ubuntu 24.04 and newer, probably also Debian 13):
+The Debian package and the AppImage are built on **Ubuntu 22.04** (in a container on the GitHub
+runner), so that they run on Linux Mint 21 and everything newer: a program needs a C library at
+least as new as the one it was built with, and Ubuntu 22.04 has the oldest one of the systems
+this is meant for (glibc 2.35). Ubuntu 22.04 only has wxWidgets 3.0, so the two packages contain
+wxWidgets 3.2, linked statically (`scripts/build_wx_linux.sh` builds it; the workflow caches the
+result). The workflow installs both packages on clean Ubuntu 22.04, Ubuntu 24.04 and Debian 12
+systems and starts the GUI there.
+
+**Debian package** (command-line tool and GUI; for Ubuntu 22.04 and newer, Linux Mint 21 and
+newer, Debian 12 and newer):
 
 ```bash
-sudo apt install dpkg-dev                # help2man and lintian are used if present
+# On a system with wxWidgets 3.2 (Ubuntu 24.04, Debian 12 and newer): libwxgtk3.2-dev is enough.
+sudo apt install build-essential cmake gettext libwxgtk3.2-dev dpkg-dev   # help2man and lintian are used if present
 DEB_MAINTAINER="Your Name <you@example.org>" ./scripts/build_deb.sh
+
+# On Ubuntu 22.04 / Linux Mint 21 (no wxWidgets 3.2 there): build it first, statically.
+sudo apt install build-essential cmake gettext pkg-config libgtk-3-dev libsm-dev libxtst-dev curl bzip2 dpkg-dev
+./scripts/build_wx_linux.sh              # into build-wx/prefix
+WX_CONFIG="$PWD/build-wx/prefix/bin/wx-config" DEB_MAINTAINER="Your Name <you@example.org>" ./scripts/build_deb.sh
+
 sudo apt install ./dist/renderham_*.deb
 ```
 
 The script builds the project, works out the run-time dependencies with `dpkg-shlibdeps`,
 generates man pages and writes the package to `dist/`. The package version is the one
-defined in `CMakeLists.txt`. The package also installs a menu entry and an icon.
+defined in `CMakeLists.txt`. The package also installs a menu entry and an icon. A package built
+against a system's own wxWidgets depends on that system's wxWidgets package, so it only installs on
+that release and newer.
 
-**AppImage** (the GUI as one file that runs without installation):
+**AppImage** (the GUI as one file that runs without installation; needs glibc 2.35 or newer):
 
 ```bash
-sudo apt install libwxgtk3.2-dev libgtk-3-dev librsvg2-dev pkg-config gettext curl file desktop-file-utils
-./scripts/build_appimage.sh
+sudo apt install build-essential cmake gettext pkg-config libgtk-3-dev libsm-dev libxtst-dev librsvg2-dev curl file desktop-file-utils bzip2
+./scripts/build_wx_linux.sh              # wxWidgets 3.2, static, into build-wx/prefix
+WX_CONFIG="$PWD/build-wx/prefix/bin/wx-config" ./scripts/build_appimage.sh
 chmod +x dist/renderHAM-*-x86_64.AppImage && ./dist/renderHAM-*-x86_64.AppImage
 ```
 
 The script downloads linuxdeploy and appimagetool (checked against pinned SHA-256 sums) and
-bundles wxWidgets and the GTK stack into the image. An AppImage needs a C library at least as
-new as the one it was built with, so the one built on Ubuntu 24.04 runs on distributions with
-glibc 2.39 or newer. The command-line tool is not part of the AppImage.
+bundles the GTK stack into the image. An AppImage needs a C library at least as new as the one
+it was built with, so build it on the oldest system you want to support: the published one is built
+on Ubuntu 22.04 and runs on distributions with glibc 2.35 or newer. The command-line tool is not
+part of the AppImage.
 
 **Flatpak** (the GUI and the command-line tool, sandboxed; builds wxWidgets from source on the
 GNOME runtime, which takes a while):
@@ -461,7 +480,7 @@ tools/renderham/     command-line tool
 tools/renderhamgui/  wxWidgets GUI (with po/ translations)
 tests/               ctest programs
 testdata/            small synthetic test pictures and independent verification scripts
-scripts/             Debian, AppImage, Windows and macOS packaging, icon generators, evaluation and translation helpers
+scripts/             Debian, AppImage, Windows and macOS packaging, static wxWidgets for Linux, icon generators, evaluation and translation helpers
 packaging/linux/     desktop entry, AppStream metadata, icon and the Flatpak manifest
 packaging/windows/   icon, manifest and resource file of renderHAMgui.exe, README.txt of the ZIP file
 packaging/macos/     icon, Info.plist of the application bundle, README.txt of the disk image
