@@ -15,6 +15,12 @@
 # Linux: the Debian package and the AppImage are built in an Ubuntu 22.04 container (the base of Linux
 # Mint 21, glibc 2.35) with a static wxWidgets 3.2 that is built once and cached; then both are
 # installed and started on clean Ubuntu 22.04, Ubuntu 24.04 and Debian 12 systems.
+# Besides the packages there is the source tarball (scripts/make_source_tarball.sh) and the scripts
+# for building and installing from it on any distribution (scripts/install_dependencies.sh, build.sh,
+# install.sh, uninstall.sh): the "source" job makes the tarball and runs the scripts on the runner
+# (a normal user with sudo); the "linux-scripts" jobs run them in containers of Ubuntu, Debian,
+# Fedora, Rocky Linux, Arch Linux and openSUSE. The latter are not a condition for a release: the
+# rolling distributions change under us, and the draft release is reviewed by a person anyway.
 #
 # Windows: MinGW-w64 from MSYS2 (UCRT64); the ZIP carries the DLLs the programs need. It is built with
 # MSYS2's wxWidgets 3.3 because wxWidgets 3.2 has no dark mode on Windows (see main.cpp). The
@@ -310,6 +316,88 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+  # The source tarball, as a release has it. The scripts for building and installing are tried on it
+  # as a normal user with sudo, which is how a person uses them.
+  source:
+    name: Source tarball
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Make the tarball
+        run: |
+          ./scripts/make_source_tarball.sh --output-dir dist
+          tar -tzf dist/renderham-*.tar.gz | grep -q '/scripts/build\.sh$'
+          if tar -tzf dist/renderham-*.tar.gz | grep -q '/\.github/'; then
+            echo "::error::the tarball contains the CI configuration"; exit 1
+          fi
+
+      - name: Unpack, install the dependencies, build and test
+        run: |
+          mkdir "$RUNNER_TEMP/src"
+          tar -xzf dist/renderham-*.tar.gz -C "$RUNNER_TEMP/src"
+          cd "$RUNNER_TEMP"/src/renderham-*/
+          ./scripts/install_dependencies.sh --yes
+          ./scripts/build.sh --test --require-gui
+
+      - name: Install, run and uninstall (system-wide with sudo, and for the user alone)
+        run: |
+          cd "$RUNNER_TEMP"/src/renderham-*/
+          find /usr/local -type f ! -path '/usr/local/share/applications/*.cache' | sort > "$RUNNER_TEMP/before"
+          ./scripts/install.sh
+          /usr/local/bin/renderHAM --version
+          test -f /usr/local/bin/translations/de/LC_MESSAGES/renderhamgui.mo
+          test -f /usr/local/share/renderham/install_manifest.txt
+          ./scripts/uninstall.sh
+          find /usr/local -type f ! -path '/usr/local/share/applications/*.cache' | sort > "$RUNNER_TEMP/after"
+          diff "$RUNNER_TEMP/before" "$RUNNER_TEMP/after"
+          # Into a copy of the home directory, so that the runner's own is left alone.
+          export HOME="$RUNNER_TEMP/home"
+          mkdir "$HOME"
+          ./scripts/install.sh --user
+          "$HOME/.local/bin/renderHAM" --version
+          ./scripts/uninstall.sh --user
+          [ -z "$(find "$HOME/.local" -type f ! -path '*/share/applications/*.cache')" ]
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: source
+          path: dist/renderham-*.tar.gz
+          if-no-files-found: error
+
+  # The same scripts on other distributions, from the tarball, in a container each (as root, so
+  # without sudo; .github/scripts/test-linux-scripts.sh says what is checked).
+  linux-scripts:
+    name: Scripts on ${{ matrix.name }}
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Ubuntu 22.04 (wxWidgets 3.0)", image: "ubuntu:22.04" }
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+          - { name: "Debian 12", image: "debian:12" }
+          - { name: "Fedora", image: "fedora:latest" }
+          - { name: "Rocky Linux 9 (EPEL)", image: "rockylinux:9" }
+          - { name: "Arch Linux", image: "archlinux:latest" }
+          - { name: "openSUSE Tumbleweed", image: "opensuse/tumbleweed:latest" }
+          - { name: "openSUSE Leap", image: "opensuse/leap:latest" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: source
+          path: pkg
+
+      - name: Build and install from the tarball
+        run: |
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -v "$PWD/.github/scripts:/ci:ro" "${{ matrix.image }}" \
+            bash /ci/test-linux-scripts.sh
+
   windows:
     name: Windows (MinGW-w64, UCRT)
     runs-on: windows-2025
@@ -587,7 +675,7 @@ jobs:
 
   release:
     name: Draft release
-    needs: [check, deb, appimage, linux-compat, flatpak, windows, macos]
+    needs: [check, source, deb, appimage, linux-compat, flatpak, windows, macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -634,7 +722,12 @@ jobs:
             echo "- \`renderham_${version}_amd64.deb\`: command-line tool and GUI, built on Ubuntu 22.04: for Ubuntu 22.04 and Linux Mint 21 and newer, Debian 12 and newer (\`sudo apt install ./renderham_${version}_amd64.deb\`)"
             echo "- \`renderHAM-${version}-x86_64.AppImage\`: the GUI as a single file (\`chmod +x\`, then run); built on Ubuntu 22.04, needs glibc 2.35 or newer"
             echo "- \`renderHAM-${version}-x86_64.flatpak\`: the GUI and the command-line tool as a Flatpak (\`flatpak install --user renderHAM-${version}-x86_64.flatpak\`)"
-            echo "- \`SHA256SUMS\`: checksums of the files above"
+            echo
+            echo "**Source code**"
+            echo
+            echo "- \`renderham-${version}.tar.gz\`: the sources; \`./scripts/install_dependencies.sh\`, \`./scripts/build.sh\` and \`./scripts/install.sh\` build and install them on Debian, Ubuntu, Linux Mint, Fedora, Arch Linux and openSUSE (see the README for other systems)"
+            echo
+            echo "\`SHA256SUMS\` lists the checksums of all files."
             echo
             echo "This is AI-generated software: the code was written by Claude (Anthropic) under the direction of rawbit (@ravvbit). See the README."
           } > notes.md
