@@ -24,7 +24,7 @@
 #   WX_CONFIG         the wx-config of the wxWidgets to build the GUI with (default: the one in the PATH)
 #
 # Missing tools: ./scripts/install_dependencies.sh installs them on Debian, Ubuntu, Linux Mint, Fedora,
-# Arch Linux and openSUSE. Afterwards: ./scripts/install.sh
+# Arch Linux and openSUSE, and on macOS with Homebrew. Afterwards: ./scripts/install.sh
 
 set -euo pipefail
 
@@ -118,8 +118,11 @@ cmake --build "$build_dir" -j "$jobs"
 
 cli="$build_dir/tools/renderham/renderHAM"
 gui_exe="$build_dir/tools/renderhamgui/renderHAMgui"
+# On macOS the GUI is an application bundle (renderHAM.app), not a plain program.
+gui_app="$build_dir/tools/renderhamgui/renderHAM.app"
+if [ -x "$gui_app/Contents/MacOS/renderHAM" ]; then gui_exe="$gui_app"; fi
 [ -x "$cli" ] || { echo "error: the build finished but $cli is missing." >&2; exit 1; }
-if [ "$gui" = yes ] && [ ! -x "$gui_exe" ]; then
+if [ "$gui" = yes ] && [ ! -e "$gui_exe" ]; then
     echo "" >&2
     echo "warning: renderHAMgui was not built because wxWidgets was not found." >&2
     echo "         ./scripts/install_dependencies.sh installs it; --no-gui silences this warning." >&2
@@ -135,5 +138,5 @@ fi
 echo ""
 echo "Built in $build_dir:"
 echo "  $cli"
-if [ -x "$gui_exe" ]; then echo "  $gui_exe"; fi
+if [ -e "$gui_exe" ]; then echo "  $gui_exe"; fi
 echo "Next: ./scripts/install.sh   (system-wide, with sudo)   or   ./scripts/install.sh --user"

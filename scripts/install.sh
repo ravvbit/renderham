@@ -6,8 +6,8 @@
 #
 # Installs what scripts/build.sh built: the command-line tool renderHAM and the GUI renderHAMgui
 # (with its German translation, menu entry and icon), the library with its headers, and the licence
-# texts. Works on any Linux distribution. It records what it installed, so that scripts/uninstall.sh
-# can remove it again.
+# texts. Works on any Linux distribution and on macOS. It records what it installed, so that
+# scripts/uninstall.sh can remove it again.
 #
 # Usage:
 #   ./scripts/install.sh [options]
@@ -24,6 +24,11 @@
 # on a system where the Debian package or another package of renderHAM is installed; the default
 # /usr/local never clashes with a package.
 #
+# On macOS the GUI is the application renderHAM.app instead: it goes to /Applications, with --user to
+# ~/Applications, and with --prefix or --destdir it stays below the prefix (<prefix>/renderHAM.app).
+# It uses the wxWidgets it was built with (the one of Homebrew, say), so it is for this Mac; the disk
+# image from the release page is the one to pass on.
+#
 # Remove it again with the same options: ./scripts/uninstall.sh [--user | --prefix DIR]
 
 set -euo pipefail
@@ -37,6 +42,8 @@ prefix_given=no
 user_install=no
 destdir=""
 build_dir=build
+macos=no
+[ "$(uname -s)" != Darwin ] || macos=yes
 
 usage() {
     sed -n '/^# Usage:/,/^# Remove it again/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
@@ -91,10 +98,36 @@ version="$(sed -n 's/^project(renderham VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLi
 # --- Root rights? ------------------------------------------------------------------------------
 # Needed when the nearest directory that exists on the way to the target can not be written.
 target_root="$destdir$prefix"
-probe="$target_root"
-while [ ! -e "$probe" ] && [ "$probe" != / ]; do probe="$(dirname "$probe")"; done
+
+# macOS: CMake puts the application bundle into <prefix>/renderHAM.app. That is where it stays with
+# --prefix and --destdir; otherwise it is moved to where applications live.
+app_name=renderHAM.app
+app_id=io.github.ravvbit.renderham
+app_built=no
+app_dir=""
+if [ "$macos" = yes ] && [ -d "$build_dir/tools/renderhamgui/$app_name" ]; then
+    app_built=yes
+    if [ -n "$destdir" ] || [ "$prefix_given" = yes ]; then
+        app_dir="$prefix"
+    elif [ "$user_install" = yes ]; then
+        app_dir="$HOME/Applications"
+    else
+        app_dir=/Applications
+    fi
+fi
+
+# Succeeds when the nearest directory that exists on the way to $1 can be written.
+writable() {
+    local probe="$1"
+    while [ ! -e "$probe" ] && [ "$probe" != / ]; do probe="$(dirname "$probe")"; done
+    [ -w "$probe" ]
+}
+
+need_root=no
+writable "$target_root" || need_root=yes
+if [ "$app_built" = yes ]; then writable "$destdir$app_dir" || need_root=yes; fi
 sudo_cmd=()
-if [ ! -w "$probe" ] && [ "$(id -u)" -ne 0 ]; then
+if [ "$need_root" = yes ] && [ "$(id -u)" -ne 0 ]; then
     if command -v sudo > /dev/null 2>&1; then
         sudo_cmd=(sudo)
         echo "Installing into $target_root needs root rights; using sudo."
@@ -120,19 +153,57 @@ fi
 # hand it back to whoever owns the build directory, and keep a copy next to the installed files.
 manifest="$build_dir/install_manifest.txt"
 if [ "$(id -u)" -eq 0 ] || [ "${#sudo_cmd[@]}" -gt 0 ]; then
-    as_root chown "$(stat -c '%u:%g' "$build_dir")" "$manifest" 2> /dev/null || true
+    # GNU stat first, then the one of macOS and the BSDs.
+    owner="$(stat -c '%u:%g' "$build_dir" 2> /dev/null || stat -f '%u:%g' "$build_dir" 2> /dev/null || true)"
+    [ -z "$owner" ] || as_root chown "$owner" "$manifest" 2> /dev/null || true
+fi
+
+# --- macOS: the application ---------------------------------------------------------------------
+app_path=""
+if [ "$app_built" = yes ]; then
+    app_path="$app_dir/$app_name"
+    if [ "$app_dir" != "$prefix" ]; then
+        if [ -e "$app_path" ]; then
+            # Replace an older renderHAM.app, but nothing else that happens to have this name.
+            if ! grep -q "<string>$app_id</string>" "$app_path/Contents/Info.plist" 2> /dev/null; then
+                echo "error: $app_path exists and is not renderHAM; move it away first." >&2
+                echo "       (The rest is installed; the application is in $prefix/$app_name.)" >&2
+                exit 1
+            fi
+            echo "-- Replacing: $app_path"
+            as_root rm -rf "$app_path"
+        fi
+        as_root mkdir -p "$app_dir"
+        as_root mv "$prefix/$app_name" "$app_path"
+        echo "-- Moved the application to: $app_path"
+    fi
 fi
 
 stored="$target_root/share/renderham/install_manifest.txt"
 tmp_manifest="$(mktemp)"
 trap 'rm -f "$tmp_manifest"' EXIT
 # The paths in the list never contain the --destdir directory (some CMake versions add it; drop it).
-awk -v d="$destdir" -v p="$prefix" 'BEGIN { pre = d p "/" } { if (d != "" && index($0, pre) == 1) print substr($0, length(d) + 1); else print $0 }' \
-    "$manifest" > "$tmp_manifest"
-as_root install -D -m 644 "$tmp_manifest" "$stored"
+# The files of the macOS application are not listed one by one: the bundle is recorded as a whole.
+awk -v d="$destdir" -v p="$prefix" -v app="$prefix/$app_name/" -v skip_app="$app_built" '
+    BEGIN { pre = d p "/" }
+    {
+        line = $0
+        if (d != "" && index(line, pre) == 1) line = substr(line, length(d) + 1)
+        if (skip_app == "yes" && index(line, app) == 1) next
+        print line
+    }' "$manifest" > "$tmp_manifest"
+as_root mkdir -p "$(dirname "$stored")"
+as_root install -m 644 "$tmp_manifest" "$stored"
+app_record="$target_root/share/renderham/install_app.txt"
+if [ -n "$app_path" ]; then
+    printf '%s\n' "$app_path" > "$tmp_manifest"
+    as_root install -m 644 "$tmp_manifest" "$app_record"
+else
+    as_root rm -f "$app_record"
+fi
 
 # --- Register with the desktop (best effort; a failure here is harmless) -----------------------------
-if [ -z "$destdir" ]; then
+if [ -z "$destdir" ] && [ "$macos" = no ]; then
     if command -v update-desktop-database > /dev/null 2>&1; then
         as_root update-desktop-database -q "$prefix/share/applications" 2> /dev/null || true
     fi
@@ -144,7 +215,9 @@ fi
 echo ""
 echo "Installed:"
 echo "  $target_root/bin/renderHAM"
-if [ -x "$target_root/bin/renderHAMgui" ]; then
+if [ -n "$app_path" ]; then
+    echo "  $destdir$app_path   (the GUI; start it from the Finder or Launchpad, or with: open \"$destdir$app_path\")"
+elif [ -x "$target_root/bin/renderHAMgui" ]; then
     echo "  $target_root/bin/renderHAMgui   (and the entry \"renderHAM\" in the application menu)"
 else
     echo "  (renderHAMgui was not built, so only the command-line tool is installed)"
@@ -154,7 +227,9 @@ if [ -z "$destdir" ]; then
         *":$prefix/bin:"*) ;;
         *)
             echo ""
-            echo "Note: $prefix/bin is not in your PATH. Add it, e.g. with this line in ~/.profile:"
+            profile="~/.profile"
+            [ "$macos" = no ] || profile="~/.zprofile"
+            echo "Note: $prefix/bin is not in your PATH. Add it, e.g. with this line in $profile:"
             echo "      export PATH=\"$prefix/bin:\$PATH\""
             ;;
     esac

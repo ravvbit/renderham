@@ -350,6 +350,7 @@ three commands do it all:
 | Fedora; Rocky Linux, AlmaLinux and RHEL (with EPEL) | `dnf` | `gcc-c++ make cmake gettext wxGTK-devel` |
 | Arch Linux, Manjaro, EndeavourOS and relatives | `pacman` | `base-devel cmake gettext wxwidgets-gtk3` |
 | openSUSE Tumbleweed and Leap | `zypper` | `gcc-c++ make cmake gettext-tools wxGTK3-3_2-devel` |
+| macOS | `brew` ([Homebrew](https://brew.sh)) | `cmake gettext wxwidgets`; the compiler comes with Xcode's command-line tools (`xcode-select --install`) |
 
 On any other distribution, install the same things by hand (the package names differ): a C++17
 compiler, `make`, CMake 3.16 or newer, gettext and, for the GUI, wxWidgets 3.0 or newer (the GTK 3
@@ -376,6 +377,14 @@ have that in the `PATH`, and the script tells you if yours does not. The default
 never clashes with a Debian package, which lives in `/usr`; do not use `--prefix /usr` on a system
 that has packages of renderHAM. The GUI keeps its settings in `~/.renderHAMgui`, which uninstalling
 leaves alone.
+
+The same three scripts work on **macOS** with Homebrew, for a build of your own instead of the
+[disk image](#windows-and-macos). There the GUI is the application `renderHAM.app`: `install.sh` puts
+it into `/Applications` (with `--user` into `~/Applications`, with `--prefix` or `--destdir` it stays in
+`<prefix>/renderHAM.app`), the command-line tool into `<prefix>/bin` as on Linux, and `uninstall.sh`
+removes both. Such an application uses Homebrew's wxWidgets, so it runs on the Mac it was built on;
+the disk image is the one to pass on. The settings of the GUI are in
+`~/Library/Preferences/renderHAMgui Preferences` on macOS.
 
 ### Requirements
 
