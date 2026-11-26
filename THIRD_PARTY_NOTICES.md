@@ -40,12 +40,17 @@ expat, PCRE2; all under permissive licences). Their licence texts are installed 
 AppImage (`licence.txt` is the wxWindows Library Licence 3.1). If you distribute a binary that
 contains wxWidgets, you must also pass on wxWidgets' own licence text and notices with it.
 
+The macOS application contains the same wxWidgets 3.2.12, linked statically and compiled by the
+workflow in `.github/workflows/build.yml` from the same source archive, with the same bundled
+libraries. Their licence texts are in `renderHAM.app/Contents/Resources/Licenses/wxWidgets/`.
+
 The command-line tool `renderHAM` and the library `renderhamlib` do not use wxWidgets.
 
 ### Binary packages that contain libraries
 
-The Linux packages built by `scripts/build_deb.sh`, `scripts/build_appimage.sh` and
-`packaging/linux/flatpak/` contain libraries; the sections on wxWidgets above and the lists below say which:
+The packages built by `scripts/build_deb.sh`, `scripts/build_appimage.sh`, `scripts/package_windows.sh`,
+`scripts/package_macos.sh` and `packaging/linux/flatpak/` contain libraries; the sections on wxWidgets
+above and the lists below say which:
 
 - **Debian package** (built on Ubuntu 22.04): contains wxWidgets and the libraries bundled with it, as
   described above. Everything else it uses (GTK, GLib, Pango, Cairo and so on) comes from the
@@ -59,6 +64,19 @@ The Linux packages built by `scripts/build_deb.sh`, `scripts/build_appimage.sh` 
   AppImage can be unpacked with `--appimage-extract`, so the libraries in it can be replaced
   by modified versions. The AppImage file also embeds the AppImage runtime added by
   `appimagetool` (see <https://github.com/AppImage/type2-runtime> for its licences).
+- **Windows ZIP file** (built in MSYS2, UCRT64): the DLLs next to the programs are copied from the MSYS2
+  packages that provide them: wxWidgets 3.3 (wxWindows Library Licence 3.1), the GCC runtime
+  (`libstdc++`, `libgcc_s`: GPL-3.0 with the GCC Runtime Library Exception), `libwinpthread` (MIT and
+  BSD-style) and the image, compression and text libraries that wxWidgets uses (libpng, zlib,
+  libjpeg-turbo, libtiff, expat, PCRE2 and similar, under permissive licences). The folder `licenses/`
+  in the ZIP file has the license files that each of those packages installs, and
+  `licenses/PACKAGES.txt` lists package, version, license and DLLs. The source code and build
+  recipes of the packages are at <https://github.com/msys2/MINGW-packages>. The packaging script stops
+  if a DLL has no package or a package has no license file.
+- **macOS disk image**: the application is a universal binary (Intel and Apple Silicon) with wxWidgets
+  3.2.12 and its bundled libraries linked statically; nothing from Homebrew is in it. The licence texts
+  are in `renderHAM.app/Contents/Resources/Licenses/` (together with `LICENSE` and this file), so
+  they stay with the application when it is copied out of the disk image.
 - **Flatpak**: wxWidgets 3.2.12 is compiled from the upstream source tarball named in the
   manifest, and its licence texts are installed under `share/doc/wxWidgets/`. Everything else
   comes from the GNOME runtime, under the licences of the runtime's components.

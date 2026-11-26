@@ -22,5 +22,7 @@ and Windows blocks the files after unpacking: right-click the ZIP file, Properti
 About
 -----
 renderHAM is free software under the MIT License (see LICENSE); the libraries it uses are listed
-in THIRD_PARTY_NOTICES.md. It is AI-generated software: the code was written by Claude (Anthropic)
+in THIRD_PARTY_NOTICES.md. The DLL files in this folder are free software of other authors; the
+folder "licenses" has their license texts, and licenses\PACKAGES.txt says which package, version
+and license each DLL belongs to. It is AI-generated software: the code was written by Claude (Anthropic)
 under the direction of rawbit (@ravvbit). Project page and manual: https://github.com/ravvbit/renderham

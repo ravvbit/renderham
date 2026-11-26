@@ -176,6 +176,10 @@ render pan frames with `--crop` from a script).
   read "Custom". "Load palette..." and "Save palette..." handle IFF ILBM, JASC `.pal` and GIMP `.gpl`
   files; a saved name without an extension gets the one of the selected file type.
 * Conversions run in the background with a progress display; `Esc` cancels.
+* **Dark mode:** the window follows the system's light or dark setting on macOS, on Windows (10 and
+  newer; the Windows package is built with wxWidgets 3.3, which has the dark mode wxWidgets 3.2 lacks)
+  and on Linux (with a dark GTK theme). The picture areas turn dark gray with it, and the symbols on the
+  buttons are drawn again when the setting changes while the program runs.
 * Settings can be saved as your defaults. The interface is in English by default; a German
   translation can be chosen in the Settings dialog or with `--lang de`.
 
@@ -422,8 +426,9 @@ On every push and pull request the workflow builds the library, the command-line
 runs the whole test suite on **Windows** (MinGW-w64 from MSYS2, UCRT64) and on **macOS**. For both it
 then unpacks the finished package like a user would, runs `renderHAM --version`, converts a picture
 to a file with a non-ASCII name, starts the GUI with a picture and checks that it is still running
-a few seconds later; the screenshots it takes are kept as workflow artifacts. On Windows the GUI
-also converts the picture (`F5`) before the screenshot.
+a few seconds later; the screenshots it takes are kept as workflow artifacts. It does that with the
+light and with the dark setting of the system (on Windows also with a setting that changes while the
+program runs), and on Windows the GUI also converts the picture (`F5`) before the screenshot.
 
 What that does **not** cover: the macOS program is one universal build, but the macOS test machine
 is an Intel Mac, so the Apple Silicon half of it is compiled and linked but never run (GitHub
@@ -439,12 +444,16 @@ manifest for the modern look and per-monitor DPI) and an application bundle (`re
 #### Building the packages yourself
 
 * **Windows:** install [MSYS2](https://www.msys2.org), open its *UCRT64* shell and run
-  `pacman -S zip mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,gettext-tools,wxwidgets3.2-msw}`, then
+  `pacman -S zip mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,gettext-tools,wxwidgets3.3-msw}`, then
   `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build` and
   `./scripts/package_windows.sh build dist`. The script copies the programs, the translation, the
-  licenses and every DLL they need (found by reading the import tables) into
-  `dist/renderHAM-<version>-windows-x64/` and zips that folder. Without the script, the programs
+  license of renderHAM and every DLL they need (found by reading the import tables) into
+  `dist/renderHAM-<version>-windows-x64/`, adds the license files of the MSYS2 packages the DLLs come
+  from (`licenses/`, with `PACKAGES.txt` saying which package, version and license each DLL has; the script
+  stops if one is missing) and zips that folder. Without the script, the programs
   need the DLLs from MSYS2's `ucrt64/bin` folder (the UCRT64 shell has it on its `PATH`).
+  With `wxwidgets3.2-msw` the GUI builds and runs, too, but stays light in a dark Windows (only
+  wxWidgets 3.3 and newer has a dark mode for Windows).
   The MinGW-w64 compiler has to use the *posix* thread model (MSYS2's does), because the animation
   renderer uses `std::thread`.
 * **macOS:** install Xcode's command-line tools, CMake, Ninja and gettext (for example with
@@ -456,7 +465,11 @@ manifest for the modern look and per-monitor DPI) and an application bundle (`re
   `./scripts/package_macos.sh build dist`. The application bundle is
   `build/tools/renderhamgui/renderHAM.app`; the script signs it ad hoc (no developer
   certificate) and writes `dist/renderHAM-<version>-macos-universal.dmg`. With a static wxWidgets
-  the bundle needs no libraries beyond the ones macOS has, which the script checks.
+  the bundle needs no libraries beyond the ones macOS has, which the script checks. It also puts the
+  license texts of wxWidgets (and of the libraries bundled with it) into the bundle; they come from
+  the folder `WX_LICENCE_DIR` (default: `share/doc/wxWidgets` of the wxWidgets prefix), which
+  `scripts/install_wx_licences.sh <wxWidgets source dir> <folder>` fills from the source archive
+  (`build_wx_linux.sh` does it for the Linux build; the macOS job of the workflow does it, too).
 
 The icon files (`packaging/windows/renderham.ico`, `packaging/macos/renderham.icns`) are made from the
 Linux icon by `scripts/make_app_icons.py` (needs `rsvg-convert`); they are committed, so building

@@ -80,6 +80,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **The Windows ZIP file and the macOS disk image carry the license texts of the libraries they contain**
+  (they had `LICENSE` and `THIRD_PARTY_NOTICES.md`, but not the texts that wxWidgets' license asks to pass
+  on). The Windows ZIP file has a folder `licenses/` with the license files of every MSYS2 package a DLL
+  comes from, and `licenses/PACKAGES.txt` (package, version, license, DLLs); `package_windows.sh` stops if
+  a DLL has no package or a package no license file. The macOS application has the wxWidgets texts (and
+  those of libpng, zlib, libjpeg, libtiff, expat and PCRE2, which are bundled with it), `LICENSE` and
+  `THIRD_PARTY_NOTICES.md` in `Contents/Resources/Licenses/`, inside the signed bundle. The workflow
+  checks both. `scripts/install_wx_licences.sh` collects the wxWidgets texts for the Linux packages and
+  the macOS application.
 - **The Debian package and the AppImage now run on Ubuntu 22.04 and Linux Mint 21** (they were built on
   Ubuntu 24.04 and needed its newer C library: "version `GLIBC_2.38' not found"). They are built on
   Ubuntu 22.04 now, with wxWidgets 3.2 linked statically because that release only has wxWidgets 3.0
@@ -88,6 +97,16 @@ All notable changes to this project are documented here. The format follows
   the AppImage needs glibc 2.35 or newer. The wxWidgets licence texts, and those of the libraries
   bundled with it, are part of both packages. The workflow installs both on clean Ubuntu 22.04, Ubuntu
   24.04 and Debian 12 systems and starts the GUI, and runs the tests on Ubuntu 22.04, too.
+- **Dark mode**: the GUI follows the light or dark setting of the system on Windows (it was always light
+  there) and on macOS (it did; the picture areas did not). wxWidgets 3.2 has no dark mode for Windows, so
+  the Windows package is now built with MSYS2's wxWidgets 3.3 (3.3.4 at the time of writing), and the
+  application asks for the dark mode with `wxApp::SetAppearance(Appearance::System)` (only when compiled
+  with wxWidgets 3.3 or newer; with 3.2 the GUI builds as before and stays light on Windows). On every
+  system, Linux with a dark GTK theme included, the two picture areas are dark gray instead of light
+  gray when the theme is dark, and the symbols on the buttons (drawn in the text color of the theme)
+  are drawn again when the system changes between light and dark while the program runs. The workflow
+  starts the GUI with the light and the dark setting on Windows and macOS (and with a setting changed
+  while it runs on Windows) and keeps the screenshots.
 - GUI: "Lock current palette" now sits in the row of the "Current palette" caption instead of a row of its
   own. That makes room for the new "Quality profile" line, so the window is no taller than before and the
   whole Palette box still fits a 1080p screen.

@@ -7,12 +7,15 @@
 #include <cstddef>
 #include <cstring>
 
+#include <wx/settings.h>
+
 ImageView::ImageView(wxWindow* parent)
     : wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN | wxVSCROLL | wxHSCROLL) {
-    SetBackgroundColour(wxColour(210, 210, 210));
+    UpdateBackgroundColour();
     SetScrollRate(1, 1);  // see kLineStep
     Bind(wxEVT_PAINT, &ImageView::OnPaint, this);
     Bind(wxEVT_SIZE, &ImageView::OnSize, this);
+    Bind(wxEVT_SYS_COLOUR_CHANGED, &ImageView::OnSysColourChanged, this);
     Bind(wxEVT_MOUSEWHEEL, &ImageView::OnMouseWheel, this);
     Bind(wxEVT_LEFT_DOWN, &ImageView::OnMouseDown, this);
     Bind(wxEVT_MOTION, &ImageView::OnMouseMove, this);
@@ -26,6 +29,22 @@ ImageView::ImageView(wxWindow* parent)
     for (const auto& type : {wxEVT_SCROLLWIN_PAGEUP, wxEVT_SCROLLWIN_PAGEDOWN, wxEVT_SCROLLWIN_THUMBTRACK,
                              wxEVT_SCROLLWIN_THUMBRELEASE, wxEVT_SCROLLWIN_TOP, wxEVT_SCROLLWIN_BOTTOM})
         Bind(type, &ImageView::OnScrollOther, this);
+}
+
+// The area around the picture: a neutral light gray, or a dark gray when the system uses a dark
+// theme (a light area would glare in the middle of a dark window).
+void ImageView::UpdateBackgroundColour() {
+    bool dark = false;
+#if wxCHECK_VERSION(3, 1, 3)
+    dark = wxSystemSettings::GetAppearance().IsDark();
+#endif
+    SetBackgroundColour(dark ? wxColour(64, 64, 64) : wxColour(210, 210, 210));
+}
+
+void ImageView::OnSysColourChanged(wxSysColourChangedEvent& event) {
+    UpdateBackgroundColour();
+    Refresh();
+    event.Skip();  // the children (the scrollbars) want to know, too
 }
 
 void ImageView::SetImage(wxImage image, bool keep_view) {

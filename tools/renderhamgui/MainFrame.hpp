@@ -55,6 +55,7 @@ private:
     void OnSettings(wxCommandEvent&);
     void OnSaveAsDefaults(wxCommandEvent&);
     void OnSize(wxSizeEvent& event);
+    void OnSysColourChanged(wxSysColourChangedEvent& event);
     void OnCloseWindow(wxCloseEvent& event);
     // Gives the scrollable parameter panel as much height as it needs, but
     // no more than what is left after the toolbar, a usable pair of preview
