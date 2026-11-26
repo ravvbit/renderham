@@ -118,6 +118,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The GUI did not build with wxWidgets 3.0 (the version of Ubuntu 22.04 and Linux Mint 21) since the UTF-8
+  file name changes: they used `wxString::utf8_string()` and a `FromUTF8` overload that exist only since
+  wxWidgets 3.1. Two small helpers (`ToUtf8`, `FromUtf8`) replace them, and the workflow builds and tests
+  the program with wxWidgets 3.0.5 on Ubuntu 22.04 so that this stays true.
 - The settings panel was cut off at the bottom in a window of the default size: the start height counted
   the picture panes at their bare minimum, while the layout later keeps them at 260 px and takes the
   difference from the settings. The default window width now also follows what the settings need, which

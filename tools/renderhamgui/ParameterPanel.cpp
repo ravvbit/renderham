@@ -5,6 +5,7 @@
 #include "FileFilters.hpp"
 #include "GuiIcons.hpp"
 #include "IconUtil.hpp"
+#include "Utf8.hpp"
 
 #include <wx/config.h>
 #include <wx/filefn.h>
@@ -838,8 +839,8 @@ void ParameterPanel::OnLoadPalette(wxCommandEvent&) {
 
     aic::Palette loaded;
     std::string error;
-    if (!aic::load_palette(dlg.GetPath().utf8_string(), &loaded, &error)) {
-        wxMessageBox(wxString::Format(_("Failed to load palette: %s"), wxString::FromUTF8(error)), _("Error"),
+    if (!aic::load_palette(ToUtf8(dlg.GetPath()), &loaded, &error)) {
+        wxMessageBox(wxString::Format(_("Failed to load palette: %s"), FromUtf8(error)), _("Error"),
                      wxOK | wxICON_ERROR, this);
         return;
     }
@@ -878,8 +879,8 @@ void ParameterPanel::OnSavePalette(wxCommandEvent&) {
     }
 
     std::string error;
-    if (!aic::save_palette(current, path.utf8_string(), &error)) {
-        wxMessageBox(wxString::Format(_("Failed to save palette: %s"), wxString::FromUTF8(error)), _("Error"),
+    if (!aic::save_palette(current, ToUtf8(path), &error)) {
+        wxMessageBox(wxString::Format(_("Failed to save palette: %s"), FromUtf8(error)), _("Error"),
                      wxOK | wxICON_ERROR, this);
     }
 }

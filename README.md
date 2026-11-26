@@ -270,7 +270,7 @@ a viewer needs to show source and result in step.
 ### Requirements
 
 * A C++17 compiler (GCC, Clang) and **CMake 3.16 or newer**
-* For the GUI (optional): **wxWidgets 3.0 or newer** (developed and tested with 3.2.4)
+* For the GUI (optional): **wxWidgets 3.0 or newer** (developed with 3.2; the workflow also builds it with 3.0.5, the version of Ubuntu 22.04)
 * For the German GUI translation (optional): GNU gettext (`msgfmt`)
 
 The command-line tool and the library need nothing else – the image loading, writing and
@@ -282,7 +282,7 @@ On Debian, Ubuntu and Linux Mint:
 sudo apt install build-essential cmake libwxgtk3.2-dev gettext
 ```
 
-(`libwxgtk3.0-gtk3-dev` on older releases.)
+(`libwxgtk3.0-gtk3-dev` on Ubuntu 22.04 and Linux Mint 21, which have no wxWidgets 3.2.)
 
 ### Build
 
