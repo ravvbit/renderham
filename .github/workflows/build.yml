@@ -130,7 +130,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            git cmake g++ binutils gettext pkg-config libgtk-3-dev libsm-dev libxtst-dev \
+            git cmake make g++ binutils gettext pkg-config libgtk-3-dev libsm-dev libxtst-dev \
             dpkg-dev help2man lintian xvfb xauth desktop-file-utils ca-certificates zstd
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -179,7 +179,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            git cmake g++ gettext pkg-config libgtk-3-dev libsm-dev libxtst-dev librsvg2-dev \
+            git cmake make g++ gettext pkg-config libgtk-3-dev libsm-dev libxtst-dev librsvg2-dev \
             curl ca-certificates file desktop-file-utils xvfb xauth zstd
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
