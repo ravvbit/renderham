@@ -5,13 +5,14 @@
 # scripts/install_dependencies.sh
 #
 # Installs what is needed to build renderHAM from source, with the package manager of this
-# Linux distribution: a C++17 compiler, CMake, gettext (for the German translation of the GUI)
-# and wxWidgets (for the GUI). It knows
+# Linux distribution or with Homebrew on macOS: a C++17 compiler, CMake, gettext (for the German
+# translation of the GUI) and wxWidgets (for the GUI). It knows
 #
 #   Debian, Ubuntu, Linux Mint, Pop!_OS and relatives   apt
 #   Fedora, RHEL, Rocky, AlmaLinux and relatives        dnf     (RHEL and relatives need EPEL for wxWidgets)
 #   Arch Linux, Manjaro, EndeavourOS and relatives      pacman
 #   openSUSE (Tumbleweed, Leap) and relatives           zypper
+#   macOS                                               brew    (Homebrew, https://brew.sh)
 #
 # Usage:
 #   ./scripts/install_dependencies.sh [--no-gui] [--yes] [--print]
@@ -20,7 +21,8 @@
 #   --yes      do not ask before installing
 #   --print    only print the commands, do not run them
 #
-# The packages are installed with root rights (sudo is used when you are not root). Other
+# The packages are installed with root rights (sudo is used when you are not root), except on macOS:
+# Homebrew works without them, and the compiler there comes with Xcode's command-line tools. Other
 # distributions: install a C++17 compiler, make, CMake 3.16 or newer, gettext and wxWidgets 3.0 or
 # newer (GTK 3 version) with its development files, then continue with scripts/build.sh.
 #
@@ -61,7 +63,12 @@ if [ -r /etc/os-release ]; then
 fi
 
 family=""
+if [ "$(uname -s)" = Darwin ]; then
+    family=brew
+    os_name="macOS $(sw_vers -productVersion 2> /dev/null || true)"
+fi
 for word in $os_id $os_like; do
+    [ -z "$family" ] || break
     case "$word" in
         debian | ubuntu) family=apt ;;
         fedora | rhel | centos) family=dnf ;;
@@ -82,7 +89,13 @@ fi
 
 # --- Root rights -------------------------------------------------------------------------------
 sudo_cmd=()
-if [ "$(id -u)" -ne 0 ]; then
+if [ "$family" = brew ]; then
+    # Homebrew installs into its own directory, as the user who owns it, and refuses to run as root.
+    if [ "$(id -u)" -eq 0 ] && [ "$print_only" = no ]; then
+        echo "error: Homebrew does not run as root; run this script as yourself (without sudo)." >&2
+        exit 1
+    fi
+elif [ "$(id -u)" -ne 0 ]; then
     if command -v sudo > /dev/null 2>&1; then
         sudo_cmd=(sudo)
     elif [ "$print_only" = no ]; then
@@ -184,6 +197,32 @@ case "$family" in
             packages+=("$wx_package")
         fi
         run zypper --non-interactive install --no-recommends "${packages[@]}"
+        ;;
+    brew)
+        if ! command -v brew > /dev/null 2>&1 && [ "$print_only" = no ]; then
+            cat >&2 <<EOF
+error: Homebrew (the command 'brew') not found. Install it from https://brew.sh and run this
+script again, or install by hand (for example with MacPorts): CMake 3.16 or newer, gettext and,
+for the GUI, wxWidgets 3.0 or newer. Then run ./scripts/build.sh.
+EOF
+            exit 1
+        fi
+        # The compiler and make are part of Xcode's command-line tools, which Homebrew needs as well.
+        if ! xcode-select -p > /dev/null 2>&1; then
+            if [ "$print_only" = yes ]; then
+                echo "+ xcode-select --install"
+            else
+                echo "error: Xcode's command-line tools (the C++ compiler) are not installed." >&2
+                echo "       Install them with 'xcode-select --install', then run this script again." >&2
+                exit 1
+            fi
+        fi
+        packages=(cmake gettext)
+        [ "$gui" = no ] || packages+=(wxwidgets)
+        echo "Packages: ${packages[*]}"
+        confirm
+        # Packages that are installed already are left as they are (brew says so and goes on).
+        run brew install "${packages[@]}"
         ;;
 esac
 

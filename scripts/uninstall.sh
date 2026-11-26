@@ -6,8 +6,9 @@
 #
 # Removes what scripts/install.sh installed, using the list of files it recorded in
 # <prefix>/share/renderham/install_manifest.txt. Only files below the prefix are removed, and
-# only directories that belong to renderHAM (and only when they are empty). Your saved GUI
-# settings are not touched.
+# only directories that belong to renderHAM (and only when they are empty). On macOS the
+# application renderHAM.app that install.sh put into /Applications, ~/Applications or the prefix is
+# removed as well. Your saved GUI settings are not touched.
 #
 # Usage:
 #   ./scripts/uninstall.sh [options]
@@ -92,6 +93,29 @@ while IFS= read -r line || [ -n "$line" ]; do
     if [ -e "$path" ] || [ -L "$path" ]; then files+=("$path"); fi
 done < "$manifest"
 
+# macOS: the application bundle, recorded as a whole. It is removed only from where install.sh puts
+# it, and only when it really is renderHAM.
+app_record="$root/share/renderham/install_app.txt"
+app=""
+if [ -f "$app_record" ]; then
+    IFS= read -r app_line < "$app_record" || true
+    case "$app_line" in
+        *"/../"*) app_line="" ;;
+        "$prefix/renderHAM.app") ;;
+        /Applications/renderHAM.app | "$HOME/Applications/renderHAM.app") [ -z "$destdir" ] || app_line="" ;;
+        *) app_line="" ;;
+    esac
+    if [ -z "$app_line" ]; then
+        echo "warning: ignoring the unexpected entry in $app_record" >&2
+    elif [ -d "$destdir$app_line" ]; then
+        if grep -q "<string>io.github.ravvbit.renderham</string>" "$destdir$app_line/Contents/Info.plist" 2> /dev/null; then
+            app="$destdir$app_line"
+        else
+            echo "warning: $destdir$app_line is not renderHAM; leaving it alone." >&2
+        fi
+    fi
+fi
+
 # Directories that may be removed (when empty): the file's own directory and the ones above it,
 # as long as renderHAM owns them: share/renderham, share/doc/renderham, bin/translations/... and
 # include/aic/... (the library's headers).
@@ -113,13 +137,17 @@ add_dirs() {
 for f in "${files[@]+"${files[@]}"}"; do add_dirs "$(dirname "$f")"; done
 add_dirs "$root/share/renderham"
 # deepest first, each directory once
-mapfile -t dirs < <(printf '%s\n' "${dirs[@]+"${dirs[@]}"}" | awk 'NF' | sort -u | awk '{ print length($0) "\t" $0 }' | sort -rn | cut -f2-)
+# (a loop instead of mapfile: the bash of macOS, 3.2, does not have it)
+sorted_dirs=()
+while IFS= read -r d; do sorted_dirs+=("$d"); done \
+    < <(printf '%s\n' "${dirs[@]+"${dirs[@]}"}" | awk 'NF' | sort -u | awk '{ print length($0) "\t" $0 }' | sort -rn | cut -f2-)
+dirs=(${sorted_dirs[@]+"${sorted_dirs[@]}"})
 
 # --- Root rights? ------------------------------------------------------------------------------
 sudo_cmd=()
 need_root=no
 if [ "$(id -u)" -ne 0 ] && [ "$dry_run" = no ]; then
-    for f in "${files[@]+"${files[@]}"}" "$manifest"; do
+    for f in "${files[@]+"${files[@]}"}" "$manifest" ${app:+"$app"}; do
         if [ ! -w "$(dirname "$f")" ]; then need_root=yes; break; fi
     done
     if [ "$need_root" = yes ]; then
@@ -139,6 +167,8 @@ if [ "$dry_run" = yes ]; then
     echo "Would remove from $root:"
     for f in "${files[@]+"${files[@]}"}"; do echo "  ${f#"$destdir"}"; done
     echo "  ${manifest#"$destdir"}"
+    if [ -f "$app_record" ]; then echo "  ${app_record#"$destdir"}"; fi
+    if [ -n "$app" ]; then echo "  ${app#"$destdir"}/   (the application)"; fi
     for d in "${dirs[@]+"${dirs[@]}"}"; do echo "  ${d#"$destdir"}/   (if empty)"; done
     exit 0
 fi
@@ -147,7 +177,11 @@ echo "=== removing renderHAM from $root ==="
 if [ "${#files[@]}" -gt 0 ]; then
     as_root rm -f -- "${files[@]}"
 fi
-as_root rm -f -- "$manifest"
+as_root rm -f -- "$manifest" "$app_record"
+if [ -n "$app" ]; then
+    as_root rm -rf -- "$app"
+    echo "Removed the application $app."
+fi
 for d in "${dirs[@]+"${dirs[@]}"}"; do
     as_root rmdir "$d" 2> /dev/null || true
 done
@@ -161,4 +195,6 @@ if [ -z "$destdir" ]; then
     fi
 fi
 
-echo "Removed ${#files[@]} files. Your saved settings (~/.renderHAMgui) were left in place; delete that file by hand if you want them gone, too."
+settings="~/.renderHAMgui"
+[ "$(uname -s)" != Darwin ] || settings="~/Library/Preferences/renderHAMgui Preferences"
+echo "Removed ${#files[@]} files. Your saved settings ($settings) were left in place; delete that file by hand if you want them gone, too."
