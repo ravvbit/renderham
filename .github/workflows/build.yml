@@ -16,7 +16,10 @@
 # Mint 21, glibc 2.35) with a static wxWidgets 3.2 that is built once and cached; then both are
 # installed and started on clean Ubuntu 22.04, Ubuntu 24.04 and Debian 12 systems.
 #
-# Windows: MinGW-w64 from MSYS2 (UCRT64); the ZIP carries the DLLs the programs need.
+# Windows: MinGW-w64 from MSYS2 (UCRT64); the ZIP carries the DLLs the programs need. It is built with
+# MSYS2's wxWidgets 3.3 because wxWidgets 3.2 has no dark mode on Windows (see main.cpp). The
+# GUI is started with the light and the dark setting of Windows, and with a setting changed while it
+# runs; the macOS job starts it light and dark, too. The screenshots are workflow artifacts.
 #
 # macOS: the job runs on GitHub's last Intel runner image, so the tests run the Intel part of the
 # programs; the Apple Silicon part is compiled and linked but not run. (GitHub did not give this
@@ -327,7 +330,7 @@ jobs:
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-gettext-tools
-            mingw-w64-ucrt-x86_64-wxwidgets3.2-msw
+            mingw-w64-ucrt-x86_64-wxwidgets3.3-msw
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -370,23 +373,61 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "the conversion failed with $LASTEXITCODE" }
           if (-not (Test-Path -LiteralPath $out)) { throw "the output file was not written" }
 
-          # The GUI with a picture, a few seconds to come up and to convert (F5), then a screenshot.
+          # The GUI with a picture, a few seconds to come up and to convert (F5), then a screenshot -
+          # once with the light and once with the dark setting of Windows, and once more with the
+          # setting changed while the program is running.
           New-Item -ItemType Directory -Path screenshots | Out-Null
-          $gui = Start-Process -FilePath "$dir\renderHAMgui.exe" -ArgumentList "`"$PWD\testdata\test_input.png`"" -PassThru
-          Start-Sleep -Seconds 8
-          $exited = $gui.HasExited
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          if (-not $exited) {
-            try { [System.Windows.Forms.SendKeys]::SendWait("{F5}") } catch { Write-Host "SendKeys: $_" }
-            Start-Sleep -Seconds 6
+          Add-Type -Namespace Win32 -Name Native -MemberDefinition '[DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);'
+          $personalize = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+          New-Item -Path $personalize -Force | Out-Null
+
+          function Set-Theme($mode) {
+            $value = if ($mode -eq "dark") { 0 } else { 1 }
+            Set-ItemProperty -Path $personalize -Name AppsUseLightTheme -Value $value -Type DWord
+            Set-ItemProperty -Path $personalize -Name SystemUsesLightTheme -Value $value -Type DWord
           }
-          $area = [System.Windows.Forms.SystemInformation]::VirtualScreen
-          $bitmap = New-Object System.Drawing.Bitmap $area.Width, $area.Height
-          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-          $graphics.CopyFromScreen($area.Left, $area.Top, 0, 0, $bitmap.Size)
-          $bitmap.Save("$PWD\screenshots\windows-gui.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          if ($gui.HasExited) { throw "renderHAMgui.exe quit early with code $($gui.ExitCode)" }
-          Stop-Process -Id $gui.Id -Force
+          # What the settings page does after it has changed the theme.
+          function Send-ThemeChange {
+            $result = [UIntPtr]::Zero
+            [void][Win32.Native]::SendMessageTimeout([IntPtr]0xffff, 0x001A, [UIntPtr]::Zero, "ImmersiveColorSet", 2, 5000, [ref]$result)
+          }
+          function Save-Screenshot($name) {
+            $area = [System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bitmap = New-Object System.Drawing.Bitmap $area.Width, $area.Height
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.CopyFromScreen($area.Left, $area.Top, 0, 0, $bitmap.Size)
+            $bitmap.Save("$PWD\screenshots\windows-gui-$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          }
+          function Start-Gui {
+            $gui = Start-Process -FilePath "$dir\renderHAMgui.exe" -ArgumentList "`"$PWD\testdata\test_input.png`"" -PassThru
+            Start-Sleep -Seconds 8
+            if (-not $gui.HasExited) {
+              try { [System.Windows.Forms.SendKeys]::SendWait("{F5}") } catch { Write-Host "SendKeys: $_" }
+              Start-Sleep -Seconds 6
+            }
+            return $gui
+          }
+          function Stop-Gui($gui, $name) {
+            if ($gui.HasExited) { throw "renderHAMgui.exe quit early with code $($gui.ExitCode) ($name)" }
+            Stop-Process -Id $gui.Id -Force
+            Start-Sleep -Seconds 2
+          }
+
+          foreach ($mode in "light", "dark") {
+            Set-Theme $mode
+            $gui = Start-Gui
+            Save-Screenshot $mode
+            Stop-Gui $gui $mode
+          }
+
+          Set-Theme "light"
+          $gui = Start-Gui
+          Set-Theme "dark"
+          Send-ThemeChange
+          Start-Sleep -Seconds 5
+          Save-Screenshot "light-to-dark"
+          Stop-Gui $gui "light-to-dark"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -510,14 +551,26 @@ jobs:
           "$mnt/Command-line tool/renderHAM" -i testdata/test_input.png -o "$out"
           test -s "$out"
 
-          # The GUI with a picture; it has to stay up for a few seconds. Then a screenshot.
-          open -n "$mnt/renderHAM.app" --args "$PWD/testdata/test_input.png"
-          sleep 12
-          pgrep -x renderHAM && running=yes || running=no
-          screencapture -x screenshots/macos-gui.png || echo "screencapture failed"
-          pkill -x renderHAM || true
+          # The GUI with a picture; it has to stay up for a few seconds. Then a screenshot - once with
+          # the light and once with the dark setting of macOS (the runner is set to dark for the
+          # second start, with System Events as the System Settings do it).
+          failed=""
+          for mode in light dark; do
+            if [ "$mode" = dark ]; then
+              osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
+              sleep 3
+            fi
+            open -n "$mnt/renderHAM.app" --args "$PWD/testdata/test_input.png"
+            sleep 12
+            pgrep -x renderHAM && running=yes || running=no
+            screencapture -x "screenshots/macos-gui-$mode.png" || echo "screencapture failed"
+            pkill -x renderHAM || true
+            [ "$running" = yes ] || { echo "::error::renderHAM.app is not running ($mode)"; failed=yes; }
+            sleep 2
+          done
+          osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' || true
           hdiutil detach "$mnt" -quiet || true
-          [ "$running" = yes ] || { echo "::error::renderHAM.app is not running"; exit 1; }
+          [ -z "$failed" ] || exit 1
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

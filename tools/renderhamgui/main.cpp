@@ -35,6 +35,10 @@ public:
     bool OnInit() override {
         SetAppName("renderHAMgui");
         SetVendorName("renderHAM");
+#if wxCHECK_VERSION(3, 3, 0)
+        // wxMSW 3.3 has a dark mode but only uses it when asked to (macOS and GTK follow the system on their own).
+        SetAppearance(Appearance::System);
+#endif
         if (!wxApp::OnInit()) return false;
         InitLocale();
         auto* frame = initial_path_.IsEmpty() ? new MainFrame() : new MainFrame(initial_path_);

@@ -436,6 +436,7 @@ void MainFrame::Init() {
     }
     UpdateParamsPanelHeight();
     Bind(wxEVT_SIZE, &MainFrame::OnSize, this);
+    Bind(wxEVT_SYS_COLOUR_CHANGED, &MainFrame::OnSysColourChanged, this);
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnCloseWindow, this);
 
     // Persisted immediately on selection (see OnTargetDirectory), same
@@ -1197,6 +1198,15 @@ void MainFrame::OnCloseWindow(wxCloseEvent& event) {
     preview_timer_.Stop();
     SaveWindowGeometry();
     event.Skip();  // continue with the normal close
+}
+
+// The system changed between a light and a dark theme while the program runs: the symbols on the buttons
+// are made in the text color of the theme, so they have to be made again. (The windows and controls
+// take care of themselves; the picture areas react to the event, too.)
+void MainFrame::OnSysColourChanged(wxSysColourChangedEvent& event) {
+    RefreshMaskIcons(this);
+    Refresh();
+    event.Skip();  // on to the children
 }
 
 void MainFrame::OnSize(wxSizeEvent& event) {

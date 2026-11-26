@@ -65,7 +65,7 @@ above and the lists below say which:
   by modified versions. The AppImage file also embeds the AppImage runtime added by
   `appimagetool` (see <https://github.com/AppImage/type2-runtime> for its licences).
 - **Windows ZIP file** (built in MSYS2, UCRT64): the DLLs next to the programs are copied from the MSYS2
-  packages that provide them: wxWidgets 3.2 (wxWindows Library Licence 3.1), the GCC runtime
+  packages that provide them: wxWidgets 3.3 (wxWindows Library Licence 3.1), the GCC runtime
   (`libstdc++`, `libgcc_s`: GPL-3.0 with the GCC Runtime Library Exception), `libwinpthread` (MIT and
   BSD-style) and the image, compression and text libraries that wxWidgets uses (libpng, zlib,
   libjpeg-turbo, libtiff, expat, PCRE2 and similar, under permissive licences). The folder `licenses/`

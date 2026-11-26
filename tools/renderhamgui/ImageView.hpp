@@ -106,6 +106,8 @@ private:
 
     void OnPaint(wxPaintEvent&);
     void OnSize(wxSizeEvent&);
+    void OnSysColourChanged(wxSysColourChangedEvent& event);
+    void UpdateBackgroundColour();
     void OnMouseWheel(wxMouseEvent&);
     void OnMouseDown(wxMouseEvent&);
     void OnMouseMove(wxMouseEvent&);
