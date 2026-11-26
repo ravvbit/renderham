@@ -80,6 +80,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **The Debian package and the AppImage now run on Ubuntu 22.04 and Linux Mint 21** (they were built on
+  Ubuntu 24.04 and needed its newer C library: "version `GLIBC_2.38' not found"). They are built on
+  Ubuntu 22.04 now, with wxWidgets 3.2 linked statically because that release only has wxWidgets 3.0
+  (`scripts/build_wx_linux.sh`; `WX_CONFIG` tells `build_deb.sh` and `build_appimage.sh` which wxWidgets
+  to use). The Debian package no longer depends on a wxWidgets package and needs glibc 2.34 or newer;
+  the AppImage needs glibc 2.35 or newer. The wxWidgets licence texts, and those of the libraries
+  bundled with it, are part of both packages. The workflow installs both on clean Ubuntu 22.04, Ubuntu
+  24.04 and Debian 12 systems and starts the GUI, and runs the tests on Ubuntu 22.04, too.
 - GUI: "Lock current palette" now sits in the row of the "Current palette" caption instead of a row of its
   own. That makes room for the new "Quality profile" line, so the window is no taller than before and the
   whole Palette box still fits a 1080p screen.

@@ -25,6 +25,12 @@
 #   DEB_HOMEPAGE     project URL for the control file (default: the GitHub repository)
 #
 # The result is dist/renderham_<version>_<arch>.deb
+#
+# The package can only run where the C library is at least as new as the one it was built against,
+# and where the libraries it depends on exist: build on the oldest system you want to support.
+# The published package is built on Ubuntu 22.04 (Linux Mint 21 and newer) with a static
+# wxWidgets 3.2, which that release does not have; WX_CONFIG points the build at it:
+#   WX_CONFIG   path of the wx-config of the wxWidgets to build against (default: the system's)
 
 set -euo pipefail
 
@@ -61,7 +67,11 @@ cleanup() { rm -rf "$STAGE_DIR"; }
 trap cleanup EXIT
 
 echo "=== 1/6: configure + build (Release) ==="
-cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+CMAKE_EXTRA=()
+if [ -n "${WX_CONFIG:-}" ]; then
+    CMAKE_EXTRA+=("-DwxWidgets_CONFIG_EXECUTABLE=$WX_CONFIG")
+fi
+cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release ${CMAKE_EXTRA[@]+"${CMAKE_EXTRA[@]}"}
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
 echo ""
@@ -69,6 +79,14 @@ echo "=== 2/6: install into $STAGE_DIR (prefix /usr) ==="
 DESTDIR="$STAGE_DIR" cmake --install "$BUILD_DIR" --prefix /usr
 
 mkdir -p "$STAGE_DIR/DEBIAN"
+
+# A wxWidgets built by scripts/build_wx_linux.sh is part of renderHAMgui; its licence texts go with it.
+WX_LICENCE_DIR=""
+if [ -n "${WX_CONFIG:-}" ] && [ -d "$(dirname "$WX_CONFIG")/../share/doc/wxWidgets" ]; then
+    WX_LICENCE_DIR="$(cd "$(dirname "$WX_CONFIG")/../share/doc/wxWidgets" && pwd)"
+    mkdir -p "$STAGE_DIR/usr/share/doc/$PKG_NAME/wxWidgets"
+    cp -p "$WX_LICENCE_DIR"/* "$STAGE_DIR/usr/share/doc/$PKG_NAME/wxWidgets/"
+fi
 
 echo ""
 echo "=== 3/6: determine run-time dependencies automatically ==="
@@ -201,6 +219,18 @@ mkdir -p "$DOC_DIR"
     echo "Copyright: 2026 rawbit (@ravvbit)"
     echo "License: Expat"
     echo "Comment: AI-generated software, written by Claude (Anthropic) under human direction."
+    if [ -n "$WX_LICENCE_DIR" ]; then
+        echo ""
+        echo "Files: usr/bin/renderHAMgui"
+        echo "Copyright: wxWidgets contributors (see the licence texts)"
+        echo "License: wxWindows-3.1"
+        echo " The wxWindows Library Licence, Version 3.1: the GNU Library General Public Licence with an"
+        echo " exception that permits distributing binaries under the terms of one's own choice. The"
+        echo " full texts are in /usr/share/doc/$PKG_NAME/wxWidgets/ (licence.txt and lgpl.txt)."
+        echo "Comment: renderHAMgui contains a static copy of wxWidgets and of the libraries bundled with"
+        echo " it (libpng, zlib, libjpeg, libtiff, expat, PCRE2). Their licence texts are in"
+        echo " /usr/share/doc/$PKG_NAME/wxWidgets/ (licence.txt is the wxWindows Library Licence 3.1)."
+    fi
     echo ""
     echo "Files: third_party/stb/*"
     echo "Copyright: 2017 Sean Barrett and contributors"

@@ -32,25 +32,30 @@ distribute binaries of programs that use the library under terms of your own cho
 exception is why a permissively licensed program such as renderHAM can be linked against it,
 statically or dynamically, without the program itself becoming LGPL or GPL.
 
-The `renderham` Debian package built by `scripts/build_deb.sh` links wxWidgets dynamically
-and does not contain any wxWidgets code. If you distribute a binary that contains wxWidgets
-(for example a statically linked Windows build), you must also pass on wxWidgets' own licence
-text and notices with it.
+The Debian package and the AppImage contain wxWidgets 3.2.12, linked statically into `renderHAMgui`
+(compiled by `scripts/build_wx_linux.sh` from the upstream source archive), together with the image,
+compression and regular-expression libraries that wxWidgets bundles (libpng, zlib, libjpeg, libtiff,
+expat, PCRE2; all under permissive licences). Their licence texts are installed with the packages:
+`/usr/share/doc/renderham/wxWidgets/` for the Debian package, `usr/share/doc/wxWidgets/` inside the
+AppImage (`licence.txt` is the wxWindows Library Licence 3.1). If you distribute a binary that
+contains wxWidgets, you must also pass on wxWidgets' own licence text and notices with it.
 
 The command-line tool `renderHAM` and the library `renderhamlib` do not use wxWidgets.
 
 ### Binary packages that contain libraries
 
-The `.deb` package does not contain third-party libraries; it depends on the distribution's
-packages. The other two Linux packages, built by `scripts/build_appimage.sh` and
-`packaging/linux/flatpak/`, do:
+The Linux packages built by `scripts/build_deb.sh`, `scripts/build_appimage.sh` and
+`packaging/linux/flatpak/` contain libraries; the sections on wxWidgets above and the lists below say which:
 
-- **AppImage** (built on Ubuntu 24.04): contains copies of wxWidgets and of the GTK 3 stack and
-  other libraries of that release (GTK, GLib, Pango, Cairo, ATK, HarfBuzz and their
-  dependencies). Most of these are licensed under the LGPL-2.1-or-later, others under MIT, BSD
-  and similar licences. The copyright files that the distribution provides for them are
+- **Debian package** (built on Ubuntu 22.04): contains wxWidgets and the libraries bundled with it, as
+  described above. Everything else it uses (GTK, GLib, Pango, Cairo and so on) comes from the
+  distribution, through the package's dependencies.
+- **AppImage** (built on Ubuntu 22.04): contains wxWidgets and its bundled libraries, as described above,
+  and copies of the GTK 3 stack and other libraries of that release (GTK, GLib, Pango, Cairo, ATK,
+  HarfBuzz and their dependencies). Most of these are licensed under the LGPL-2.1-or-later, others
+  under MIT, BSD and similar licences. The copyright files that the distribution provides for them are
   included inside the AppImage under `usr/share/doc/`. The source code is available from the
-  Ubuntu 24.04 source packages (`apt source <package>`) and from the upstream projects. An
+  Ubuntu 22.04 source packages (`apt source <package>`) and from the upstream projects. An
   AppImage can be unpacked with `--appimage-extract`, so the libraries in it can be replaced
   by modified versions. The AppImage file also embeds the AppImage runtime added by
   `appimagetool` (see <https://github.com/AppImage/type2-runtime> for its licences).
