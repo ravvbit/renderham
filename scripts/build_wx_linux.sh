@@ -56,15 +56,7 @@ make install
 
 # The programs contain the library, so the licence texts of wxWidgets and of the libraries bundled
 # with it go with them: build_deb.sh and build_appimage.sh copy this folder into their packages.
-DOC_DIR="$PREFIX/share/doc/wxWidgets"
-mkdir -p "$DOC_DIR"
-install -m644 docs/licence.txt docs/lgpl.txt docs/gpl.txt docs/preamble.txt "$DOC_DIR/"
-install -m644 src/png/LICENSE      "$DOC_DIR/libpng-LICENSE"
-install -m644 src/zlib/LICENSE     "$DOC_DIR/zlib-LICENSE"
-install -m644 src/jpeg/README      "$DOC_DIR/libjpeg-README"
-install -m644 src/tiff/COPYRIGHT   "$DOC_DIR/libtiff-COPYRIGHT"
-install -m644 src/expat/expat/COPYING "$DOC_DIR/expat-COPYING"
-install -m644 3rdparty/pcre/LICENCE   "$DOC_DIR/pcre2-LICENCE"
+"$SCRIPT_DIR/install_wx_licences.sh" . "$PREFIX/share/doc/wxWidgets"
 
 echo ""
 echo "Done: $PREFIX/bin/wx-config"

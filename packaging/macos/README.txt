@@ -25,5 +25,7 @@ The command-line tool is blocked the same way when it is downloaded; remove the 
 About
 -----
 renderHAM is free software under the MIT License (see LICENSE); the libraries it uses are listed
-in THIRD_PARTY_NOTICES.md. It is AI-generated software: the code was written by Claude (Anthropic)
+in THIRD_PARTY_NOTICES.md. The application contains wxWidgets and the libraries that come with it;
+their license texts are inside renderHAM.app (Control-click the app, "Show Package Contents",
+Contents > Resources > Licenses). It is AI-generated software: the code was written by Claude (Anthropic)
 under the direction of rawbit (@ravvbit). Project page and manual: https://github.com/ravvbit/renderham

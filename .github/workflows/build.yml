@@ -351,6 +351,16 @@ jobs:
           $dir = (Get-ChildItem smoke -Directory | Select-Object -First 1).FullName
           Get-ChildItem $dir | Format-Table Name, Length
 
+          # The license texts of the DLLs have to be in the ZIP file.
+          foreach ($f in "LICENSE", "THIRD_PARTY_NOTICES.md", "licenses\PACKAGES.txt") {
+            if (-not (Test-Path -LiteralPath "$dir\$f")) { throw "$f is not in the ZIP file" }
+          }
+          $texts = Get-ChildItem "$dir\licenses" -Recurse -File | Where-Object Name -ne "PACKAGES.txt"
+          Write-Host "$($texts.Count) license files in licenses\"
+          if ($texts.Count -lt 3) { throw "too few license files in the ZIP file" }
+          $wxText = $texts | Where-Object { $_.FullName -match "wxwidgets" }
+          if (-not $wxText) { throw "no wxWidgets license text in the ZIP file" }
+
           & "$dir\renderHAM.exe" --version
           if ($LASTEXITCODE -ne 0) { throw "renderHAM.exe --version failed with $LASTEXITCODE" }
 
@@ -436,6 +446,20 @@ jobs:
           make -j"$(sysctl -n hw.ncpu)"
           make install
 
+      # The application contains wxWidgets, so it carries the license texts of wxWidgets and of the
+      # libraries bundled with it. They are taken from the source archive on every run (also when the
+      # built library comes from the cache, which has no copy), and package_macos.sh puts them in
+      # the application.
+      - name: License texts of wxWidgets
+        run: |
+          if [ ! -d "wxWidgets-${WX_VERSION}" ]; then
+            curl -fsSL -o wx.tar.bz2 \
+              "https://github.com/wxWidgets/wxWidgets/releases/download/v${WX_VERSION}/wxWidgets-${WX_VERSION}.tar.bz2"
+            echo "${WX_SHA256}  wx.tar.bz2" | shasum -a 256 -c -
+            tar xjf wx.tar.bz2
+          fi
+          ./scripts/install_wx_licences.sh "wxWidgets-${WX_VERSION}" "${RUNNER_TEMP}/wx-licences"
+
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -462,7 +486,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
       - name: Build the disk image
-        run: ./scripts/package_macos.sh build dist
+        run: WX_LICENCE_DIR="${RUNNER_TEMP}/wx-licences" ./scripts/package_macos.sh build dist
 
       - name: Open the disk image and start the programs
         run: |
@@ -471,6 +495,14 @@ jobs:
           hdiutil attach dist/renderHAM-*-macos-universal.dmg -mountpoint "$mnt" -nobrowse -readonly
           ls -la "$mnt"
           codesign -dv --verbose=2 "$mnt/renderHAM.app" 2>&1 | head -n 12
+
+          # The license texts are in the application (and the signature covers them).
+          lic="$mnt/renderHAM.app/Contents/Resources/Licenses"
+          ls -R "$lic"
+          for f in LICENSE THIRD_PARTY_NOTICES.md wxWidgets/licence.txt wxWidgets/libpng-LICENSE \
+                   wxWidgets/zlib-LICENSE wxWidgets/pcre2-LICENCE; do
+            test -s "$lic/$f" || { echo "::error::$f is not in the application"; exit 1; }
+          done
 
           "$mnt/Command-line tool/renderHAM" --version
           # A conversion to a file name with a non-ASCII character (u umlaut, written as UTF-8).

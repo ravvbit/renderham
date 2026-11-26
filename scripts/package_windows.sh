@@ -9,6 +9,12 @@
 # programs need (wxWidgets, the C++ runtime, image libraries, ...). Windows' own DLLs are not
 # copied; they are part of Windows.
 #
+# Every one of those DLLs belongs to an MSYS2 package, and the package's license files (MSYS2
+# installs them under share/licenses) go into the ZIP too: licenses/<package>/..., with
+# licenses/PACKAGES.txt saying which package, version, license and DLLs each is. The script stops
+# if a DLL has no package or a package has no license file, so that nothing is shipped without its
+# license text.
+#
 # Run it in an MSYS2 UCRT64 shell after a build (see README.md, "Windows and macOS"); it needs
 # `zip` (pacman -S zip) and objdump (comes with the compiler).
 #
@@ -68,6 +74,56 @@ while [ "${#queue[@]}" -gt 0 ]; do
     done
 done
 echo "DLLs copied from $MSYSTEM_PREFIX/bin:$copied"
+
+# --- License texts of the DLLs --------------------------------------------------------------------
+LICENSES="$STAGE/licenses"
+mkdir -p "$LICENSES"
+declare -A package_dlls=()
+for dll in $copied; do
+    # The import table spells a name in any case; pacman knows the one on disk.
+    real="$(find "$MSYSTEM_PREFIX/bin" -maxdepth 1 -iname "$dll" | head -n 1)"
+    package="$(pacman -Qqo "$real" 2>/dev/null || true)"
+    [ -n "$package" ] || { echo "error: no MSYS2 package owns $dll" >&2; exit 1; }
+    package_dlls["$package"]="${package_dlls[$package]:-} $(basename "$real")"
+done
+{
+    echo "Packages of the DLLs in this folder"
+    echo "==================================="
+    echo
+    echo "The DLLs next to the programs come from these MSYS2 (MinGW-w64, UCRT64) packages. The license"
+    echo "texts the packages come with are in the folders next to this file. The build recipes and the"
+    echo "sources of the packages are at https://github.com/msys2/MINGW-packages (one folder per package,"
+    echo "named like the package without the mingw-w64-ucrt-x86_64- prefix); the program's own license"
+    echo "is in LICENSE, and THIRD_PARTY_NOTICES.md in this ZIP file says more."
+} > "$LICENSES/PACKAGES.txt"
+missing=""
+for package in $(printf '%s\n' "${!package_dlls[@]}" | sort); do
+    version="$(pacman -Q "$package" | awk '{print $2}')"
+    info="$(pacman -Qi "$package")"
+    license="$(printf '%s\n' "$info" | sed -n 's/^Licenses[[:space:]]*:[[:space:]]*//p')"
+    homepage="$(printf '%s\n' "$info" | sed -n 's/^URL[[:space:]]*:[[:space:]]*//p')"
+    texts=0
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        rel="${file#"$MSYSTEM_PREFIX"/share/licenses/}"
+        mkdir -p "$LICENSES/$(dirname "$rel")"
+        cp "$file" "$LICENSES/$rel"
+        texts=$((texts + 1))
+    done < <(pacman -Ql "$package" | awk '{print $2}' | grep "^$MSYSTEM_PREFIX/share/licenses/" || true)
+    [ "$texts" -gt 0 ] || missing="$missing $package"
+    {
+        echo
+        echo "$package $version"
+        echo "    DLLs:      ${package_dlls[$package]# }"
+        echo "    license:   $license"
+        echo "    home page: $homepage"
+    } >> "$LICENSES/PACKAGES.txt"
+    echo "$package $version ($license): $texts license file(s), DLLs:${package_dlls[$package]}"
+done
+if [ -n "$missing" ]; then
+    echo "error: no license file found for the MSYS2 package(s):$missing" >&2
+    exit 1
+fi
 
 (cd "$OUT_DIR" && zip -q -r -9 "$NAME.zip" "$NAME")
 ls -l "$OUT_DIR/$NAME.zip"

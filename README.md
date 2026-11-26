@@ -442,8 +442,10 @@ manifest for the modern look and per-monitor DPI) and an application bundle (`re
   `pacman -S zip mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,gettext-tools,wxwidgets3.2-msw}`, then
   `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build` and
   `./scripts/package_windows.sh build dist`. The script copies the programs, the translation, the
-  licenses and every DLL they need (found by reading the import tables) into
-  `dist/renderHAM-<version>-windows-x64/` and zips that folder. Without the script, the programs
+  license of renderHAM and every DLL they need (found by reading the import tables) into
+  `dist/renderHAM-<version>-windows-x64/`, adds the license files of the MSYS2 packages the DLLs come
+  from (`licenses/`, with `PACKAGES.txt` saying which package, version and license each DLL has; the script
+  stops if one is missing) and zips that folder. Without the script, the programs
   need the DLLs from MSYS2's `ucrt64/bin` folder (the UCRT64 shell has it on its `PATH`).
   The MinGW-w64 compiler has to use the *posix* thread model (MSYS2's does), because the animation
   renderer uses `std::thread`.
@@ -456,7 +458,11 @@ manifest for the modern look and per-monitor DPI) and an application bundle (`re
   `./scripts/package_macos.sh build dist`. The application bundle is
   `build/tools/renderhamgui/renderHAM.app`; the script signs it ad hoc (no developer
   certificate) and writes `dist/renderHAM-<version>-macos-universal.dmg`. With a static wxWidgets
-  the bundle needs no libraries beyond the ones macOS has, which the script checks.
+  the bundle needs no libraries beyond the ones macOS has, which the script checks. It also puts the
+  license texts of wxWidgets (and of the libraries bundled with it) into the bundle; they come from
+  the folder `WX_LICENCE_DIR` (default: `share/doc/wxWidgets` of the wxWidgets prefix), which
+  `scripts/install_wx_licences.sh <wxWidgets source dir> <folder>` fills from the source archive
+  (`build_wx_linux.sh` does it for the Linux build; the macOS job of the workflow does it, too).
 
 The icon files (`packaging/windows/renderham.ico`, `packaging/macos/renderham.icns`) are made from the
 Linux icon by `scripts/make_app_icons.py` (needs `rsvg-convert`); they are committed, so building
