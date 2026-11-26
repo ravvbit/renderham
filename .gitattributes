@@ -1,0 +1,5 @@
+# What "git archive" leaves out of the source tarball (scripts/make_source_tarball.sh) and of
+# the "Source code" archives that GitHub makes for a release: the CI configuration, which
+# someone who builds from source does not need.
+/.github export-ignore
+/.gitattributes export-ignore

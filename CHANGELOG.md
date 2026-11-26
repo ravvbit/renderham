@@ -13,6 +13,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **Scripts to build and install on any Linux distribution**: `scripts/install_dependencies.sh`
+  (compiler, CMake, gettext and wxWidgets with `apt`, `dnf`, `pacman` or `zypper`: Debian, Ubuntu,
+  Linux Mint, Fedora, Rocky Linux, Arch Linux, openSUSE and relatives), `scripts/build.sh` (checks what
+  is installed, finds `wx-config`, builds, optionally runs the tests), `scripts/install.sh` (into
+  `/usr/local`, with `--user` into `~/.local`, with `--prefix` and `--destdir`) and
+  `scripts/uninstall.sh` (removes exactly what `install.sh` recorded). The README has installation
+  instructions for every variant (Debian package, AppImage, Flatpak, from source, Windows, macOS).
+- **Source tarball** `renderham-<version>.tar.gz`, made by `scripts/make_source_tarball.sh` (the same
+  revision always gives the same file; `.gitattributes` leaves the CI configuration out) and attached
+  to the release by the workflow. The workflow builds, installs and uninstalls from it with the
+  scripts, on the runner (as a normal user with sudo) and in containers of Ubuntu 22.04 and 24.04,
+  Debian 12, Fedora, Rocky Linux 9, Arch Linux and openSUSE (Tumbleweed and Leap).
 - **Windows and macOS packages**: `renderHAM-<version>-windows-x64.zip` (the GUI, the command-line
   tool, the DLLs they need and the German translation) and `renderHAM-<version>-macos-universal.dmg`
   (`renderHAM.app` for Intel Macs and Apple Silicon, macOS 11 or newer, plus the command-line tool).

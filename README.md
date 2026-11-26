@@ -271,6 +271,112 @@ a viewer needs to show source and result in step.
 
 ## 3. Building and installing
 
+### Installation at a glance
+
+| Your system | The easy way | What you need |
+| --- | --- | --- |
+| Ubuntu 22.04 and newer, Linux Mint 21 and newer, Debian 12 and newer (x86_64) | the [Debian package](#debian-package) | `renderham_<version>_amd64.deb` from the [release page](https://github.com/ravvbit/renderham/releases) |
+| Any other x86_64 Linux | the [AppImage](#appimage) (the GUI, nothing to install) or the [Flatpak](#flatpak) | the file from the release page |
+| Any Linux on any processor, in particular Fedora, Arch Linux, openSUSE and relatives | [build it from the source with the scripts](#from-source-with-the-scripts) | `renderham-<version>.tar.gz` from the release page, or `git clone` |
+| Windows 10 and newer, 64 bit | the [ZIP file](#windows-and-macos) | from the release page |
+| macOS 11 and newer, Intel or Apple Silicon | the [disk image](#windows-and-macos) | from the release page |
+
+### Installing on Linux
+
+#### Debian package
+
+For Ubuntu 22.04 and newer, Linux Mint 21 and newer, Debian 12 and newer (x86_64). It installs the
+command-line tool, the GUI, the man pages, a menu entry and an icon.
+
+```bash
+sudo apt install ./renderham_<version>_amd64.deb
+renderHAM --version                  # the command-line tool
+renderHAMgui                         # the GUI (or "renderHAM" in the application menu)
+sudo apt remove renderham            # removes it again
+```
+
+#### AppImage
+
+One file with the GUI and the libraries it needs; nothing is installed and no root rights are needed
+(x86_64, glibc 2.35 or newer, which means Ubuntu 22.04 and Linux Mint 21 and newer). The command-line
+tool is not part of it.
+
+```bash
+chmod +x renderHAM-<version>-x86_64.AppImage
+./renderHAM-<version>-x86_64.AppImage
+```
+
+Delete the file to remove it. It does not add a menu entry by itself (programs such as AppImageLauncher
+do that). If the system complains about FUSE, install the FUSE package of your distribution (on
+Ubuntu 24.04: `libfuse2t64`) or start the file with `--appimage-extract-and-run`.
+
+#### Flatpak
+
+The GUI and the command-line tool in a sandbox that may read and write your home folder. It uses the
+GNOME runtime from Flathub, which Flatpak fetches when you install it (if Flathub is set up on your
+system: see [flathub.org/setup](https://flathub.org/setup)).
+
+```bash
+flatpak install --user renderHAM-<version>-x86_64.flatpak
+flatpak run io.github.ravvbit.renderham
+flatpak run --command=renderHAM io.github.ravvbit.renderham --help
+flatpak uninstall io.github.ravvbit.renderham        # removes it again
+```
+
+#### From source with the scripts
+
+This works on any Linux distribution and any processor (x86_64, ARM, ...), and it is the way to get
+renderHAM on Fedora, Arch Linux, openSUSE and the like. Get the source: unpack the tarball from the
+release page,
+
+```bash
+tar xzf renderham-<version>.tar.gz && cd renderham-<version>
+```
+
+or clone the repository (`git clone https://github.com/ravvbit/renderham.git && cd renderham`). Then
+three commands do it all:
+
+```bash
+./scripts/install_dependencies.sh    # compiler, CMake, gettext and wxWidgets, from your distribution (asks first)
+./scripts/build.sh                   # builds in build/; add --test to run the tests as well
+./scripts/install.sh                 # installs into /usr/local (uses sudo); for yourself only: --user
+```
+
+`install_dependencies.sh` recognizes the distribution and uses its package manager:
+
+| Distribution | Package manager | What it installs |
+| --- | --- | --- |
+| Debian, Ubuntu, Linux Mint, Pop!_OS and relatives | `apt` | `build-essential cmake gettext` and `libwxgtk3.2-dev` (`libwxgtk3.0-gtk3-dev` where there is no 3.2: Ubuntu 22.04, Linux Mint 21) |
+| Fedora; Rocky Linux, AlmaLinux and RHEL (with EPEL) | `dnf` | `gcc-c++ make cmake gettext wxGTK-devel` |
+| Arch Linux, Manjaro, EndeavourOS and relatives | `pacman` | `base-devel cmake gettext wxwidgets-gtk3` |
+| openSUSE Tumbleweed and Leap | `zypper` | `gcc-c++ make cmake gettext-tools wxGTK3-3_2-devel` |
+
+On any other distribution, install the same things by hand (the package names differ): a C++17
+compiler, `make`, CMake 3.16 or newer, gettext and, for the GUI, wxWidgets 3.0 or newer (the GTK 3
+version) with its development files. `build.sh` checks what is there and says what is missing. If your
+distribution has no wxWidgets package, `./scripts/build_wx_linux.sh` builds wxWidgets 3.2 for you (into
+`build-wx/prefix`, see [Packages](#packages) for what it needs) and
+`WX_CONFIG="$PWD/build-wx/prefix/bin/wx-config" ./scripts/build.sh` uses it; `--no-gui` builds the
+command-line tool alone, which needs no wxWidgets at all.
+
+The options of the scripts:
+
+| Script | Options |
+| --- | --- |
+| `install_dependencies.sh` | `--no-gui` (only what the command-line tool needs), `--yes` (do not ask), `--print` (only show the commands) |
+| `build.sh` | `--no-gui`, `--require-gui` (fail if the GUI can not be built), `--debug`, `--test`, `--build-dir DIR`, `-j N`; arguments after `--` go to CMake; `WX_CONFIG=/path/to/wx-config` picks another wxWidgets |
+| `install.sh` | `--user` (into `~/.local`, no root rights), `--prefix DIR` (default `/usr/local`), `--destdir DIR` (into a staging directory, for people who make packages), `--build-dir DIR` |
+| `uninstall.sh` | `--user`, `--prefix DIR`, `--destdir DIR` as for `install.sh`, and `--dry-run` (only list what would be removed) |
+
+`install.sh` puts the programs into `<prefix>/bin`, the menu entry, icon and licence texts into
+`<prefix>/share`, the library into `<prefix>/lib` (`lib64` on Fedora and openSUSE) and its headers into
+`<prefix>/include/aic`, and records what it installed, so that `uninstall.sh` removes exactly that again
+(use the same `--user` or `--prefix` as for the installation). With `--user` the programs are in `~/.local/bin`; most distributions
+have that in the `PATH`, and the script tells you if yours does not. The default prefix `/usr/local`
+never clashes with a Debian package, which lives in `/usr`; do not use `--prefix /usr` on a system
+that has packages of renderHAM. The GUI keeps its settings in `~/.renderHAMgui`, which uninstalling
+leaves alone.
+
 ### Requirements
 
 * A C++17 compiler (GCC, Clang) and **CMake 3.16 or newer**
@@ -287,6 +393,8 @@ sudo apt install build-essential cmake libwxgtk3.2-dev gettext
 ```
 
 (`libwxgtk3.0-gtk3-dev` on Ubuntu 22.04 and Linux Mint 21, which have no wxWidgets 3.2.)
+`scripts/install_dependencies.sh` does this for Debian, Ubuntu, Fedora, Arch Linux, openSUSE and
+their relatives, see [above](#from-source-with-the-scripts).
 
 ### Build
 
@@ -297,7 +405,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
-This produces `build/tools/renderham/renderHAM`, `build/tools/renderhamgui/renderHAMgui` and
+(`./scripts/build.sh` does the same, after checking what is installed.) This produces
+`build/tools/renderham/renderHAM`, `build/tools/renderhamgui/renderHAMgui` and
 `build/renderhamlib/librenderhamlib.a`. If wxWidgets is not found, the GUI is skipped and
 everything else is built; `-DAIC_BUILD_GUI=OFF` skips it on purpose. Without gettext the GUI
 is English only.
@@ -333,15 +442,24 @@ sudo cmake --install build --prefix /usr/local
 ```
 
 installs the two programs (the GUI translation is placed next to the GUI executable, where it
-looks for it), the library and its headers.
+looks for it), the library and its headers, the menu entry and icon (Linux) and the licence texts.
+`./scripts/install.sh` does the same, and additionally records what it installed, so that
+`./scripts/uninstall.sh` can remove it (CMake has no uninstall of its own).
 
 ### Packages
 
 `.github/workflows/build.yml` builds and tests renderHAM on GitHub and packages it for x86_64
-Linux (three formats), for Windows (a ZIP file) and for macOS (a disk image). Every push to `main`
-and every pull request produces the packages as workflow artifacts; pushing a version tag
-(`v0.2.0`, ...) also drafts a GitHub release with all of them and a `SHA256SUMS` list. You can
-build each one yourself as well. Linux first, then [Windows and macOS](#windows-and-macos).
+Linux (three formats), for Windows (a ZIP file) and for macOS (a disk image), and makes the source
+tarball. Every push to `main` and every pull request produces the packages as workflow artifacts;
+pushing a version tag (`v0.2.0`, ...) also drafts a GitHub release with all of them and a `SHA256SUMS`
+list. You can build each one yourself as well. Linux first, then [Windows and macOS](#windows-and-macos).
+
+The **source tarball** `renderham-<version>.tar.gz` is made by `./scripts/make_source_tarball.sh`
+(`--ref` picks a commit or tag, `--output-dir` the folder, `dist/` by default) from the committed
+files of a git revision, below one folder `renderham-<version>/`, without the CI configuration
+(`.gitattributes` says what is left out). The same revision always gives the same file. The workflow
+unpacks it and builds, installs and uninstalls with the scripts above, on the runner and in
+containers of several distributions (Ubuntu, Debian, Fedora, Rocky Linux, Arch Linux, openSUSE).
 
 #### Linux
 
@@ -493,11 +611,12 @@ tools/renderham/     command-line tool
 tools/renderhamgui/  wxWidgets GUI (with po/ translations)
 tests/               ctest programs
 testdata/            small synthetic test pictures and independent verification scripts
-scripts/             Debian, AppImage, Windows and macOS packaging, static wxWidgets for Linux, icon generators, evaluation and translation helpers
+scripts/             build, install and uninstall scripts for Linux, source tarball, Debian, AppImage, Windows and macOS packaging, static wxWidgets for Linux, icon generators, evaluation and translation helpers
 packaging/linux/     desktop entry, AppStream metadata, icon and the Flatpak manifest
 packaging/windows/   icon, manifest and resource file of renderHAMgui.exe, README.txt of the ZIP file
 packaging/macos/     icon, Info.plist of the application bundle, README.txt of the disk image
 .github/workflows/   GitHub Actions: build, test and package for Linux, Windows and macOS (build.yml)
+.github/scripts/     the test the workflow runs in the containers of the Linux distributions
 third_party/stb/     vendored single-file libraries
 cmake/               CMake helper for the self-registering components
 docs/                images for this README
