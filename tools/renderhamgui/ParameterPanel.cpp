@@ -838,8 +838,9 @@ void ParameterPanel::OnLoadPalette(wxCommandEvent&) {
 
     aic::Palette loaded;
     std::string error;
-    if (!aic::load_palette(dlg.GetPath().ToStdString(), &loaded, &error)) {
-        wxMessageBox(wxString::Format(_("Failed to load palette: %s"), error), _("Error"), wxOK | wxICON_ERROR, this);
+    if (!aic::load_palette(dlg.GetPath().utf8_string(), &loaded, &error)) {
+        wxMessageBox(wxString::Format(_("Failed to load palette: %s"), wxString::FromUTF8(error)), _("Error"),
+                     wxOK | wxICON_ERROR, this);
         return;
     }
     reference_palette_ = loaded;
@@ -877,8 +878,9 @@ void ParameterPanel::OnSavePalette(wxCommandEvent&) {
     }
 
     std::string error;
-    if (!aic::save_palette(current, path.ToStdString(), &error)) {
-        wxMessageBox(wxString::Format(_("Failed to save palette: %s"), error), _("Error"), wxOK | wxICON_ERROR, this);
+    if (!aic::save_palette(current, path.utf8_string(), &error)) {
+        wxMessageBox(wxString::Format(_("Failed to save palette: %s"), wxString::FromUTF8(error)), _("Error"),
+                     wxOK | wxICON_ERROR, this);
     }
 }
 

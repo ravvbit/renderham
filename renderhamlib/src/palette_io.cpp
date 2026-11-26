@@ -15,6 +15,7 @@
 
 #include "aic/ham6_encoder.hpp"
 #include "aic/ilbm_writer.hpp"
+#include "file_path.hpp"
 
 namespace aic {
 namespace {
@@ -198,7 +199,7 @@ std::string file_stem(const std::string& path) {
 }
 
 bool write_text_file(const std::string& path, const std::string& text, std::string* error_out) {
-    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    std::ofstream f(detail::utf8_path(path), std::ios::binary | std::ios::trunc);
     if (!f) {
         fail(error_out, "Could not create file: " + path);
         return false;
@@ -278,7 +279,7 @@ bool save_palette(const Palette& palette, const std::string& path, PaletteFileFo
 }
 
 bool load_palette(const std::string& path, Palette* out, std::string* error_out) {
-    std::ifstream f(path, std::ios::binary);
+    std::ifstream f(detail::utf8_path(path), std::ios::binary);
     if (!f) {
         fail(error_out, "Could not open file: " + path);
         return false;

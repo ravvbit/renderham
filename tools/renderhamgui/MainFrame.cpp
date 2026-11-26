@@ -196,6 +196,9 @@ wxSizer* MainFrame::BuildPreviewHeader(const wxString& title, ImageView* view, w
 }
 
 void MainFrame::Init() {
+#ifdef __WXMSW__
+    SetIcon(wxICON(renderham));  // the icon resource of packaging/windows/renderham.rc.in
+#endif
     auto* root = new wxBoxSizer(wxVERTICAL);
 
     // Toolbar row.
@@ -625,9 +628,10 @@ void MainFrame::LoadImage(const wxString& path) {
     std::string err;
     aic::LoadOptions load_opts;
     load_opts.alpha_background = alpha_background_;
-    auto loaded = aic::Image::load(path.ToStdString(), &err, load_opts);
+    auto loaded = aic::Image::load(path.utf8_string(), &err, load_opts);
     if (!loaded) {
-        wxMessageBox(wxString::Format(_("Failed to load: %s"), err), _("Error"), wxOK | wxICON_ERROR, this);
+        wxMessageBox(wxString::Format(_("Failed to load: %s"), wxString::FromUTF8(err)), _("Error"),
+                     wxOK | wxICON_ERROR, this);
         ForgetFile(path);  // no use offering a file again that cannot be read
         return;
     }
@@ -850,14 +854,14 @@ void MainFrame::RunAnimationExport(const wxString& base_path) {
     } else {
         for (size_t i = 0; i < n; ++i) {
             wxFileName out_file(dir, wxString::Format("%s_%04d.iff", stem, static_cast<int>(i) + 1));
-            st->frame_paths.push_back(out_file.GetFullPath().ToStdString());
+            st->frame_paths.push_back(out_file.GetFullPath().utf8_string());
         }
     }
     const wxString anim_path = wxFileName(dir, stem + ".anim").GetFullPath();
 
     // Copies of everything the worker needs: it must not look at MainFrame's state, which
     // the user may change while it runs.
-    const std::string input = input_path_.ToStdString();
+    const std::string input = input_path_.utf8_string();
     const aic::ConversionOptions opts = MakeOptions();
     const std::vector<aic::CropSpec> crops = ToCropSpecs(frame_rects);
     const int reltime_jiffies = aic::anim_jiffies_for_fps(params_->GetAnimationFps());
@@ -913,7 +917,7 @@ void MainFrame::RunAnimationExport(const wxString& base_path) {
                 anim_opts.lace = st->anim_lace;
                 anim_opts.reltime_jiffies = reltime_jiffies;
                 std::string write_err;
-                if (!aic::write_ham6_anim(st->anim_frames, anim_path.ToStdString(), anim_opts, &write_err)) {
+                if (!aic::write_ham6_anim(st->anim_frames, anim_path.utf8_string(), anim_opts, &write_err)) {
                     st->write_failed = true;
                     st->write_failed_frame = n;  // not a frame
                     st->write_error = write_err;
@@ -924,11 +928,13 @@ void MainFrame::RunAnimationExport(const wxString& base_path) {
             const aic::SequenceResult& sr = st->sequence;
             if (st->write_failed) {
                 if (st->write_failed_frame >= n) {
-                    wxMessageBox(wxString::Format(_("Failed to write animation file: %s"), st->write_error),
+                    wxMessageBox(wxString::Format(_("Failed to write animation file: %s"),
+                                                  wxString::FromUTF8(st->write_error)),
                                  _("Error"), wxOK | wxICON_ERROR, this);
                 } else {
                     wxMessageBox(wxString::Format(_("Failed to write frame %d: %s"),
-                                                  static_cast<int>(st->write_failed_frame) + 1, st->write_error),
+                                                  static_cast<int>(st->write_failed_frame) + 1,
+                                                  wxString::FromUTF8(st->write_error)),
                                  _("Error"), wxOK | wxICON_ERROR, this);
                 }
                 SetStatus(_("Export failed."));
@@ -940,7 +946,8 @@ void MainFrame::RunAnimationExport(const wxString& base_path) {
             }
             if (!sr.success) {
                 wxMessageBox(wxString::Format(_("Animation frame %d failed: %s"),
-                                              static_cast<int>(sr.failed_index) + 1, sr.error_message),
+                                              static_cast<int>(sr.failed_index) + 1,
+                                              wxString::FromUTF8(sr.error_message)),
                              _("Error"), wxOK | wxICON_ERROR, this);
                 SetStatus(_("Export failed."));
                 return;
@@ -997,7 +1004,7 @@ void MainFrame::StartAnimationPreview() {
     const size_t n = frame_rects.size();
     auto st = std::make_shared<PreviewBuildState>();
     st->frames.resize(n);
-    const std::string input = input_path_.ToStdString();
+    const std::string input = input_path_.utf8_string();
     const aic::ConversionOptions opts = MakeOptions();
     const std::vector<aic::CropSpec> crops = ToCropSpecs(frame_rects);
 
@@ -1024,7 +1031,8 @@ void MainFrame::StartAnimationPreview() {
             }
             if (!sr.success) {
                 wxMessageBox(wxString::Format(_("Animation frame %d failed: %s"),
-                                              static_cast<int>(sr.failed_index) + 1, sr.error_message),
+                                              static_cast<int>(sr.failed_index) + 1,
+                                              wxString::FromUTF8(sr.error_message)),
                              _("Error"), wxOK | wxICON_ERROR, this);
                 SetStatus(_("Preview failed."));
                 return;
@@ -1304,7 +1312,7 @@ void MainFrame::RunConversion() {
     aic::ConversionOptions opts = MakeOptions();
     opts.keep_canvas = true;  // for the error-map view; animation frames deliberately do not keep theirs
     opts.quality_metrics = true;  // blurred error and SSIM for the status line (~50 ms at 320x256)
-    const std::string input = input_path_.ToStdString();
+    const std::string input = input_path_.utf8_string();
     auto result = std::make_shared<aic::PreviewResult>();
     // Where the source lands on this result's canvas - from the options this run uses, which is
     // what the picture will show even if the controls change before it is done.
@@ -1325,8 +1333,8 @@ void MainFrame::RunConversion() {
                 return;
             }
             if (!result->success) {
-                wxMessageBox(wxString::Format(_("Conversion failed: %s"), result->error_message), _("Error"),
-                             wxOK | wxICON_ERROR, this);
+                wxMessageBox(wxString::Format(_("Conversion failed: %s"), wxString::FromUTF8(result->error_message)),
+                             _("Error"), wxOK | wxICON_ERROR, this);
                 SetStatus(_("Conversion failed."));
                 return;
             }
@@ -1354,8 +1362,8 @@ void MainFrame::SaveSingle(const wxString& output_path) {
     if (!BeginJob(JobKind::Save, _("Saving..."))) return;
 
     aic::ConversionOptions opts = MakeOptions();  // not const: the worker adds its progress callback to its copy
-    const std::string input = input_path_.ToStdString();
-    const std::string output = output_path.ToStdString();
+    const std::string input = input_path_.utf8_string();
+    const std::string output = output_path.utf8_string();
     auto result = std::make_shared<aic::ConversionResult>();
 
     StartJob(
@@ -1372,8 +1380,8 @@ void MainFrame::SaveSingle(const wxString& output_path) {
                 return;
             }
             if (!result->success) {
-                wxMessageBox(wxString::Format(_("Failed to save: %s"), result->error_message), _("Error"),
-                             wxOK | wxICON_ERROR, this);
+                wxMessageBox(wxString::Format(_("Failed to save: %s"), wxString::FromUTF8(result->error_message)),
+                             _("Error"), wxOK | wxICON_ERROR, this);
                 SetStatus(_("Saving failed."));
                 return;
             }

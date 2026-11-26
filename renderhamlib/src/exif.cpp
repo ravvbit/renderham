@@ -5,6 +5,8 @@
 #include <fstream>
 #include <vector>
 
+#include "file_path.hpp"
+
 namespace aic {
 
 namespace {
@@ -67,7 +69,7 @@ int parse_exif_orientation(const uint8_t* data, size_t size) {
 }
 
 int read_exif_orientation(const std::string& path) {
-    std::ifstream f(path, std::ios::binary);
+    std::ifstream f(detail::utf8_path(path), std::ios::binary);
     if (!f) return 1;
     // The EXIF block is one APP1 segment (max. 64 KB) at the very start.
     std::vector<uint8_t> buf(70000);

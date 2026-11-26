@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
+// Resources of renderHAMgui.exe: the icon, the application manifest and the version information.
+// CMake fills in the @...@ values (tools/renderhamgui/CMakeLists.txt).
+#include <winver.h>
+
+// Looked up by name from MainFrame (wxICON(renderham)); Explorer uses it as the program's icon.
+renderham ICON "@AIC_WINDOWS_ICON@"
+
+// RT_MANIFEST (24), resource ID 1 = the manifest of the executable.
+1 24 "@AIC_WINDOWS_MANIFEST@"
+
+1 VERSIONINFO
+FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName", "rawbit (@ravvbit)"
+            VALUE "FileDescription", "renderHAM - photos to Amiga HAM6 pictures"
+            VALUE "FileVersion", "@PROJECT_VERSION@"
+            VALUE "InternalName", "renderHAMgui"
+            VALUE "LegalCopyright", "Copyright (c) 2026 rawbit (@ravvbit). MIT License."
+            VALUE "OriginalFilename", "renderHAMgui.exe"
+            VALUE "ProductName", "renderHAM"
+            VALUE "ProductVersion", "@PROJECT_VERSION@"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

@@ -1,0 +1,436 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
+#
+# Builds and tests renderHAM on Linux, Windows and macOS and packages it: Debian package (.deb),
+# AppImage and Flatpak for x86_64 Linux, a ZIP file for 64-bit Windows and a disk image (.dmg) for
+# macOS (Intel and Apple Silicon in one). On every push to main and on pull requests the packages are
+# built and offered as workflow artifacts; a version tag (v0.2.0, ...) additionally creates a draft
+# GitHub release with all of them.
+#
+# Releasing: bump the version in CMakeLists.txt, add a <release> entry to
+# packaging/linux/io.github.ravvbit.renderham.metainfo.xml and a section to CHANGELOG.md, commit, then
+#   git tag -a v0.2.0 -m "renderHAM 0.2.0" && git push origin v0.2.0
+# The release is created as a draft; review it on GitHub and publish it there.
+#
+# Windows: MinGW-w64 from MSYS2 (UCRT64); the ZIP carries the DLLs the programs need.
+#
+# macOS: the job runs on GitHub's last Intel runner image, so the tests run the Intel part of the
+# programs; the Apple Silicon part is compiled and linked but not run. (GitHub did not give this
+# repository an Apple Silicon runner within 15 minutes on three tries - macos-latest, macos-15 and
+# macos-26 - so a native job could not be added. Try again with `runs-on: macos-15`.) The Intel runner
+# images are announced to end in August 2027. Homebrew has no Intel packages of wxWidgets 3.2, so it is
+# built from the source tarball here (the same version and checksum as in the Flatpak manifest), as a
+# static universal library, and cached. The first run on a new version takes a while (about 20
+# minutes); later runs restore the cache.
+#
+# Actions are pinned to commit SHAs (the comment names the version); update them deliberately.
+name: Build and package
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a release build half-way through.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  check:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ gettext libwxgtk3.2-dev desktop-file-utils appstream
+
+      - name: Validate the desktop entry and the AppStream metadata
+        run: |
+          desktop-file-validate packaging/linux/io.github.ravvbit.renderham.desktop
+          appstreamcli validate --no-net --pedantic packaging/linux/io.github.ravvbit.renderham.metainfo.xml
+
+      - name: Check that tag, CMake version, AppStream release and changelog agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          cmake_version="$(sed -n 's/^project(renderham VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)"
+          meta_version="$(sed -n 's/.*<release version="\([^"]*\)".*/\1/p' \
+                          packaging/linux/io.github.ravvbit.renderham.metainfo.xml | head -n 1)"
+          status=0
+          [ "$tag_version" = "$cmake_version" ] || { echo "::error::tag is $tag_version but CMakeLists.txt says $cmake_version"; status=1; }
+          [ "$tag_version" = "$meta_version" ] || { echo "::error::tag is $tag_version but the newest AppStream <release> is $meta_version"; status=1; }
+          grep -q "^## \[$tag_version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $tag_version"; status=1; }
+          exit "$status"
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  deb:
+    name: Debian package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # Goes into the package's control file; change it to your preferred name and address.
+      DEB_MAINTAINER: "rawbit <359580139+ravvbit@users.noreply.github.com>"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ binutils gettext libwxgtk3.2-dev dpkg-dev help2man lintian xvfb desktop-file-utils
+
+      - name: Build the package
+        run: ./scripts/build_deb.sh
+
+      - name: Install the package and start the programs
+        run: |
+          sudo apt-get install -y ./dist/renderham_*_amd64.deb
+          renderHAM --version
+          desktop-file-validate /usr/share/applications/io.github.ravvbit.renderham.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/io.github.ravvbit.renderham.svg
+          status=0
+          timeout 10 xvfb-run -a renderHAMgui || status=$?
+          # 124 means: still running when the timeout stopped it, i.e. it started fine.
+          [ "$status" -eq 124 ] || { echo "::error::renderHAMgui exited early with status $status"; exit 1; }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deb
+          path: dist/renderham_*_amd64.deb
+          if-no-files-found: error
+
+  appimage:
+    name: AppImage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ gettext libwxgtk3.2-dev libgtk-3-dev librsvg2-dev pkg-config \
+            curl file desktop-file-utils xvfb
+
+      - name: Build the AppImage
+        run: ./scripts/build_appimage.sh
+
+      - name: Start the AppImage
+        env:
+          # The runner has no FUSE; let the AppImage unpack itself instead.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          status=0
+          timeout 15 xvfb-run -a ./dist/renderHAM-*-x86_64.AppImage || status=$?
+          [ "$status" -eq 124 ] || { echo "::error::the AppImage exited early with status $status"; exit 1; }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: appimage
+          path: dist/renderHAM-*-x86_64.AppImage
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      # Has flatpak-builder and the GNOME runtime tooling; the tag matches runtime-version in the manifest.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+      volumes:
+        # The image carries the GNOME runtime in /var/lib/flatpak. Whenever the runtime has had an update
+        # since the image was built, flatpak updates it by renaming directories of the image's layer, and
+        # overlayfs refuses that with "Invalid cross-device link" ("Failed to update org.gnome.Sdk"): a
+        # build that failed now and then, depending on the day. An anonymous volume starts with the
+        # image's content at that path but is a plain directory, where renaming works.
+        - /var/lib/flatpak
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+        with:
+          manifest-path: packaging/linux/flatpak/io.github.ravvbit.renderham.yml
+          bundle: renderHAM-x86_64.flatpak
+          arch: x86_64
+          # The cache keeps the wxWidgets build (the slow part) between runs.
+          cache-key: flatpak-builder-${{ hashFiles('packaging/linux/flatpak/io.github.ravvbit.renderham.yml') }}
+          artifact-name: flatpak
+
+  windows:
+    name: Windows (MinGW-w64, UCRT)
+    runs-on: windows-2025
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            zip
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gettext-tools
+            mingw-w64-ucrt-x86_64-wxwidgets3.2-msw
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Build the ZIP file
+        run: ./scripts/package_windows.sh build dist
+
+      # Without MSYS2 on the path, so that the ZIP file has to bring every DLL itself.
+      - name: Unpack the ZIP file and start the programs
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          New-Item -ItemType Directory -Path smoke | Out-Null
+          Expand-Archive -Path (Get-ChildItem dist\renderHAM-*-windows-x64.zip).FullName -DestinationPath smoke
+          $dir = (Get-ChildItem smoke -Directory | Select-Object -First 1).FullName
+          Get-ChildItem $dir | Format-Table Name, Length
+
+          & "$dir\renderHAM.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "renderHAM.exe --version failed with $LASTEXITCODE" }
+
+          # A conversion to a file name with a non-ASCII character (u umlaut).
+          $out = Join-Path $PWD ("Ausgabe-" + [char]0x00FC + ".iff")
+          & "$dir\renderHAM.exe" -i "$PWD\testdata\test_input.png" -o $out
+          if ($LASTEXITCODE -ne 0) { throw "the conversion failed with $LASTEXITCODE" }
+          if (-not (Test-Path -LiteralPath $out)) { throw "the output file was not written" }
+
+          # The GUI with a picture, a few seconds to come up and to convert (F5), then a screenshot.
+          New-Item -ItemType Directory -Path screenshots | Out-Null
+          $gui = Start-Process -FilePath "$dir\renderHAMgui.exe" -ArgumentList "`"$PWD\testdata\test_input.png`"" -PassThru
+          Start-Sleep -Seconds 8
+          $exited = $gui.HasExited
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          if (-not $exited) {
+            try { [System.Windows.Forms.SendKeys]::SendWait("{F5}") } catch { Write-Host "SendKeys: $_" }
+            Start-Sleep -Seconds 6
+          }
+          $area = [System.Windows.Forms.SystemInformation]::VirtualScreen
+          $bitmap = New-Object System.Drawing.Bitmap $area.Width, $area.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.CopyFromScreen($area.Left, $area.Top, 0, 0, $bitmap.Size)
+          $bitmap.Save("$PWD\screenshots\windows-gui.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          if ($gui.HasExited) { throw "renderHAMgui.exe quit early with code $($gui.ExitCode)" }
+          Stop-Process -Id $gui.Id -Force
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: dist/renderHAM-*-windows-x64.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screenshot-windows
+          path: screenshots/
+          if-no-files-found: ignore
+
+  macos:
+    name: macOS (Intel + Apple Silicon)
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    env:
+      # The oldest macOS the build targets; wxWidgets and renderHAM are built for the same one.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      WX_VERSION: "3.2.12"
+      # Keep in step with packaging/linux/flatpak/io.github.ravvbit.renderham.yml.
+      WX_SHA256: a62719bb5e1dcc41c1a6fc1eecd499c7ee8521f70402c7b1bb3342a1e16344e0
+      WX_PREFIX: ${{ github.workspace }}/wx-prefix
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install tools
+        run: brew install ninja gettext
+
+      - name: Restore wxWidgets
+        id: wx-cache
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: ${{ env.WX_PREFIX }}
+          key: wxwidgets-${{ env.WX_VERSION }}-macos-universal-target${{ env.MACOSX_DEPLOYMENT_TARGET }}-v1
+
+      - name: Build wxWidgets
+        if: steps.wx-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o wx.tar.bz2 \
+            "https://github.com/wxWidgets/wxWidgets/releases/download/v${WX_VERSION}/wxWidgets-${WX_VERSION}.tar.bz2"
+          echo "${WX_SHA256}  wx.tar.bz2" | shasum -a 256 -c -
+          tar xjf wx.tar.bz2
+          cd "wxWidgets-${WX_VERSION}"
+          # Static and universal (Intel and Apple Silicon in one), with the bundled copies of the
+          # image and compression libraries (nothing from Homebrew ends up in the program), and
+          # without the libraries renderHAMgui does not use.
+          ./configure --prefix="${WX_PREFIX}" \
+            --disable-shared --enable-unicode --disable-sys-libs \
+            --enable-universal_binary=x86_64,arm64 \
+            --with-macosx-version-min="${MACOSX_DEPLOYMENT_TARGET}" \
+            --disable-tests --disable-stc --disable-richtext --disable-ribbon --disable-propgrid \
+            --disable-aui --disable-xrc --disable-html --disable-htmlhelp --disable-webview \
+            --disable-mediactrl --without-opengl
+          make -j"$(sysctl -n hw.ncpu)"
+          make install
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DwxWidgets_CONFIG_EXECUTABLE="${WX_PREFIX}/bin/wx-config" \
+            -DMSGFMT_EXECUTABLE="$(brew --prefix gettext)/bin/msgfmt"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Check that both processor types are in the programs
+        run: |
+          for f in build/tools/renderham/renderHAM \
+                   build/tools/renderhamgui/renderHAM.app/Contents/MacOS/renderHAM; do
+            archs="$(lipo -archs "$f")"
+            echo "$f: $archs"
+            case "$archs" in *x86_64*arm64*|*arm64*x86_64*) ;; *) echo "::error::$f is not universal"; exit 1 ;; esac
+          done
+
+      # The runner is an Intel Mac, so this runs the x86_64 part of the programs. The arm64 part is
+      # compiled and linked but not run.
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Build the disk image
+        run: ./scripts/package_macos.sh build dist
+
+      - name: Open the disk image and start the programs
+        run: |
+          mnt="$RUNNER_TEMP/renderham-dmg"
+          mkdir -p "$mnt" screenshots
+          hdiutil attach dist/renderHAM-*-macos-universal.dmg -mountpoint "$mnt" -nobrowse -readonly
+          ls -la "$mnt"
+          codesign -dv --verbose=2 "$mnt/renderHAM.app" 2>&1 | head -n 12
+
+          "$mnt/Command-line tool/renderHAM" --version
+          # A conversion to a file name with a non-ASCII character (u umlaut, written as UTF-8).
+          out="$RUNNER_TEMP/Ausgabe-$(printf '\303\274').iff"
+          "$mnt/Command-line tool/renderHAM" -i testdata/test_input.png -o "$out"
+          test -s "$out"
+
+          # The GUI with a picture; it has to stay up for a few seconds. Then a screenshot.
+          open -n "$mnt/renderHAM.app" --args "$PWD/testdata/test_input.png"
+          sleep 12
+          pgrep -x renderHAM && running=yes || running=no
+          screencapture -x screenshots/macos-gui.png || echo "screencapture failed"
+          pkill -x renderHAM || true
+          hdiutil detach "$mnt" -quiet || true
+          [ "$running" = yes ] || { echo "::error::renderHAM.app is not running"; exit 1; }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos
+          path: dist/renderHAM-*-macos-universal.dmg
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screenshot-macos
+          path: screenshots/
+          if-no-files-found: ignore
+
+  release:
+    name: Draft release
+    needs: [check, deb, appimage, flatpak, windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # create the release and upload its files
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Name the files and write checksums
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cd release
+          rm -rf screenshots   # the screenshots of the Windows and macOS runs are not part of a release
+          mv renderHAM-x86_64.flatpak "renderHAM-${version}-x86_64.flatpak"
+          sha256sum -- * > SHA256SUMS
+          ls -l
+
+      - name: Write the release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            # The changelog section of this version (Keep a Changelog format).
+            awk -v h="## [${version}]" 'index($0, h) == 1 { found = 1; next } /^## \[/ { found = 0 } found' CHANGELOG.md
+            echo
+            echo "### Downloads"
+            echo
+            echo "**Windows (64-bit)**"
+            echo
+            echo "- \`renderHAM-${version}-windows-x64.zip\`: the GUI and the command-line tool with the DLLs they need; unpack it and start \`renderHAMgui.exe\`. Not signed: Windows SmartScreen asks for confirmation (\"More info\", \"Run anyway\")."
+            echo
+            echo "**macOS (Intel and Apple Silicon)**"
+            echo
+            echo "- \`renderHAM-${version}-macos-universal.dmg\`: \`renderHAM.app\` (drag it to Applications) and the command-line tool; macOS 11 or newer. Not signed with a developer certificate: macOS asks for confirmation the first time (see README.txt in the image). The Apple Silicon part has been built but not run by the automated tests."
+            echo
+            echo "**x86_64 Linux**"
+            echo
+            echo "- \`renderham_${version}_amd64.deb\`: command-line tool and GUI, built on Ubuntu 24.04, for Ubuntu 24.04 and newer (\`sudo apt install ./renderham_${version}_amd64.deb\`)"
+            echo "- \`renderHAM-${version}-x86_64.AppImage\`: the GUI as a single file (\`chmod +x\`, then run); needs glibc 2.39 or newer"
+            echo "- \`renderHAM-${version}-x86_64.flatpak\`: the GUI and the command-line tool as a Flatpak (\`flatpak install --user renderHAM-${version}-x86_64.flatpak\`)"
+            echo "- \`SHA256SUMS\`: checksums of the files above"
+            echo
+            echo "This is AI-generated software: the code was written by Claude (Anthropic) under the direction of rawbit (@ravvbit). See the README."
+          } > notes.md
+          cat notes.md
+
+      - name: Create the draft release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME exists already, only updating its files."
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+              --title "renderHAM ${GITHUB_REF_NAME#v}" --notes-file notes.md
+          fi
+          gh release upload "$GITHUB_REF_NAME" release/* --clobber

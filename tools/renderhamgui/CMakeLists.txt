@@ -2,7 +2,15 @@
 # Copyright (c) 2026 rawbit (@ravvbit). AI-generated with Claude (Anthropic) under human direction; see README.md.
 include(${wxWidgets_USE_FILE})
 
-add_executable(renderHAMgui
+# A graphical program: on Windows without a console window (the GUI subsystem), on macOS an
+# application bundle (renderHAMgui.app).
+if (WIN32)
+    set(AIC_GUI_EXECUTABLE_TYPE WIN32)
+elseif (APPLE)
+    set(AIC_GUI_EXECUTABLE_TYPE MACOSX_BUNDLE)
+endif()
+
+add_executable(renderHAMgui ${AIC_GUI_EXECUTABLE_TYPE}
     main.cpp
     MainFrame.cpp
     BackgroundJob.cpp
@@ -30,8 +38,37 @@ else()
     target_compile_options(renderHAMgui PRIVATE -Wall -Wextra)
 endif()
 
+if (WIN32)
+    # Icon, manifest (modern controls, high-DPI) and version information, see packaging/windows/.
+    set(AIC_WINDOWS_ICON ${PROJECT_SOURCE_DIR}/packaging/windows/renderham.ico)
+    set(AIC_WINDOWS_MANIFEST ${PROJECT_SOURCE_DIR}/packaging/windows/renderham.manifest)
+    configure_file(${PROJECT_SOURCE_DIR}/packaging/windows/renderham.rc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/renderham.rc @ONLY)
+    target_sources(renderHAMgui PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/renderham.rc)
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/renderham.rc PROPERTIES
+        OBJECT_DEPENDS "${AIC_WINDOWS_ICON};${AIC_WINDOWS_MANIFEST}")
+endif()
+
+if (APPLE)
+    # The bundle is renderHAM.app (the program inside it is called renderHAM, too). The icon goes
+    # to Contents/Resources.
+    set(AIC_MACOS_ICON ${PROJECT_SOURCE_DIR}/packaging/macos/renderham.icns)
+    set_source_files_properties(${AIC_MACOS_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(renderHAMgui PRIVATE ${AIC_MACOS_ICON})
+    set_target_properties(renderHAMgui PROPERTIES
+        OUTPUT_NAME renderHAM
+        MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in
+        MACOSX_BUNDLE_BUNDLE_NAME renderHAM
+        MACOSX_BUNDLE_ICON_FILE renderham.icns
+        MACOSX_BUNDLE_GUI_IDENTIFIER io.github.ravvbit.renderham
+        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+endif()
+
 include(GNUInstallDirs)
-install(TARGETS renderHAMgui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS renderHAMgui
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        BUNDLE DESTINATION .)
 
 # Desktop integration on Linux/BSD: menu entry, icon and AppStream metadata. The .deb, the
 # AppImage and the Flatpak all pick these up through "cmake --install"; the file names are
@@ -71,9 +108,20 @@ if (MSGFMT_EXECUTABLE)
     endforeach()
     add_custom_target(renderhamgui_translations ALL DEPENDS ${AIC_GUI_MO_FILES})
     add_dependencies(renderHAMgui renderhamgui_translations)
-    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/translations
-            DESTINATION ${CMAKE_INSTALL_BINDIR}
-            OPTIONAL)
+    if (APPLE)
+        # The catalogs live inside the application bundle (Contents/Resources/translations/...).
+        foreach(lang ${AIC_GUI_LOCALES})
+            set(MO_FILE ${CMAKE_CURRENT_BINARY_DIR}/translations/${lang}/LC_MESSAGES/renderhamgui.mo)
+            set_source_files_properties(${MO_FILE} PROPERTIES
+                GENERATED TRUE
+                MACOSX_PACKAGE_LOCATION Resources/translations/${lang}/LC_MESSAGES)
+        endforeach()
+        target_sources(renderHAMgui PRIVATE ${AIC_GUI_MO_FILES})
+    else()
+        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/translations
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
+                OPTIONAL)
+    endif()
 else()
     message(STATUS "msgfmt not found - renderHAMgui will build English-only (no translation catalogs)")
 endif()

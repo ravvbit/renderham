@@ -311,11 +311,12 @@ Try it:
 cd build && ctest --output-on-failure
 ```
 
-Eleven test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
+Twelve test programs cover the encoder and its lookahead, input validation, EXIF/alpha handling,
 animation sequences and timing, dither anchoring, the quality figures (the latter against
 values computed independently with NumPy), the readable image formats, the palette file formats,
-the quality profiles and the map from source to canvas that keeps the GUI's two views in step
-(checked against where the pipeline really puts a marker). Beyond ctest, the Python tools in `testdata/` check
+the quality profiles, the map from source to canvas that keeps the GUI's two views in step
+(checked against where the pipeline really puts a marker) and file names with non-ASCII characters
+(umlauts, accents, Japanese) in every place that opens a file. Beyond ctest, the Python tools in `testdata/` check
 the output files: `verify_ilbm.py` parses an IFF file independently of the C++ code, and
 `decode_ham6_independent.py` is a from-scratch HAM6 decoder whose result is compared pixel by
 pixel with the tool's own preview. `scripts/ham_eval.py` compares settings objectively
@@ -330,12 +331,15 @@ sudo cmake --install build --prefix /usr/local
 installs the two programs (the GUI translation is placed next to the GUI executable, where it
 looks for it), the library and its headers.
 
-### Linux packages
+### Packages
 
-`.github/workflows/linux-packages.yml` builds and tests renderHAM on GitHub and packages it for
-x86_64 Linux in three formats. Every push to `main` and every pull request produces them as
-workflow artifacts; pushing a version tag (`v0.2.0`, ...) also drafts a GitHub release with all
-three files and a `SHA256SUMS` list. You can build each one yourself as well:
+`.github/workflows/build.yml` builds and tests renderHAM on GitHub and packages it for x86_64
+Linux (three formats), for Windows (a ZIP file) and for macOS (a disk image). Every push to `main`
+and every pull request produces the packages as workflow artifacts; pushing a version tag
+(`v0.2.0`, ...) also drafts a GitHub release with all of them and a `SHA256SUMS` list. You can
+build each one yourself as well. Linux first, then [Windows and macOS](#windows-and-macos).
+
+#### Linux
 
 **Debian package** (command-line tool and GUI; built on Ubuntu 24.04, so it depends on that
 release's library package names: it targets Ubuntu 24.04 and newer, probably also Debian 13):
@@ -376,12 +380,68 @@ flatpak run --command=renderHAM io.github.ravvbit.renderham --help
 The desktop entry, the AppStream metadata and the (placeholder) icon live in `packaging/linux/`;
 all three packages use them.
 
-### Other platforms
+### Windows and macOS
 
-Only Linux (GTK) has been built and tested. The code is portable C++17 and wxWidgets, and the
-build is prepared for a MinGW-w64 cross build for Windows (use the *posix* thread model compiler,
-for example `x86_64-w64-mingw32-g++-posix`, because the animation renderer uses `std::thread`),
-but no Windows or macOS binaries exist and those platforms are untested.
+#### Downloads
+
+The release page (and, for every build, the workflow run) has
+
+* `renderHAM-<version>-windows-x64.zip`: unpack it anywhere and double-click `renderHAMgui.exe`.
+  The folder holds the GUI, the command-line tool `renderHAM.exe`, the DLLs they need and the German
+  translation; keep it together. Needs Windows 10 or newer, 64 bit.
+* `renderHAM-<version>-macos-universal.dmg`: open it and drag `renderHAM.app` onto *Applications*. One
+  program for Intel Macs and for Apple Silicon, macOS 11 or newer. The command-line tool is in the
+  folder *Command-line tool* of the disk image.
+
+Neither program is signed. Windows may warn about an unknown publisher (SmartScreen: "More info",
+then "Run anyway"), and macOS refuses to open the app by double-click the first time (System Settings
+> Privacy & Security > "Open Anyway"). A `README.txt` with these steps is in both packages.
+
+#### What the automated checks cover
+
+On every push and pull request the workflow builds the library, the command-line tool and the GUI and
+runs the whole test suite on **Windows** (MinGW-w64 from MSYS2, UCRT64) and on **macOS**. For both it
+then unpacks the finished package like a user would, runs `renderHAM --version`, converts a picture
+to a file with a non-ASCII name, starts the GUI with a picture and checks that it is still running
+a few seconds later; the screenshots it takes are kept as workflow artifacts. On Windows the GUI
+also converts the picture (`F5`) before the screenshot.
+
+What that does **not** cover: the macOS program is one universal build, but the macOS test machine
+is an Intel Mac, so the Apple Silicon half of it is compiled and linked but never run (GitHub
+did not hand out an Apple Silicon runner when this was set up). Nobody but the CI has used these
+packages yet, so expect rough edges; bug reports are welcome.
+
+What the code does for those systems: file names with non-ASCII characters work (the library takes
+UTF-8 paths and hands Windows what it expects; the command-line tool reads its arguments as UTF-16
+there); renderHAMgui is a windowed program without a console window on Windows (with an icon, a
+manifest for the modern look and per-monitor DPI) and an application bundle (`renderHAM.app`, with
+`Info.plist`, the icon and the translation inside) on macOS.
+
+#### Building the packages yourself
+
+* **Windows:** install [MSYS2](https://www.msys2.org), open its *UCRT64* shell and run
+  `pacman -S zip mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,gettext-tools,wxwidgets3.2-msw}`, then
+  `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build` and
+  `./scripts/package_windows.sh build dist`. The script copies the programs, the translation, the
+  licenses and every DLL they need (found by reading the import tables) into
+  `dist/renderHAM-<version>-windows-x64/` and zips that folder. Without the script, the programs
+  need the DLLs from MSYS2's `ucrt64/bin` folder (the UCRT64 shell has it on its `PATH`).
+  The MinGW-w64 compiler has to use the *posix* thread model (MSYS2's does), because the animation
+  renderer uses `std::thread`.
+* **macOS:** install Xcode's command-line tools, CMake, Ninja and gettext (for example with
+  Homebrew) and build wxWidgets 3.2 as a static library; the workflow does that from the source
+  archive (`macos` job, step "Build wxWidgets") with `--enable-universal_binary=x86_64,arm64`, and
+  caches the result, because Homebrew has no wxWidgets 3.2 package for Intel Macs. Then configure
+  with `-DwxWidgets_CONFIG_EXECUTABLE=<prefix>/bin/wx-config` (and
+  `-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"` for a universal build), build as usual and run
+  `./scripts/package_macos.sh build dist`. The application bundle is
+  `build/tools/renderhamgui/renderHAM.app`; the script signs it ad hoc (no developer
+  certificate) and writes `dist/renderHAM-<version>-macos-universal.dmg`. With a static wxWidgets
+  the bundle needs no libraries beyond the ones macOS has, which the script checks.
+
+The icon files (`packaging/windows/renderham.ico`, `packaging/macos/renderham.icns`) are made from the
+Linux icon by `scripts/make_app_icons.py` (needs `rsvg-convert`); they are committed, so building
+does not need the tool.
 
 ### Translating the GUI
 
@@ -401,9 +461,11 @@ tools/renderham/     command-line tool
 tools/renderhamgui/  wxWidgets GUI (with po/ translations)
 tests/               ctest programs
 testdata/            small synthetic test pictures and independent verification scripts
-scripts/             Debian and AppImage packaging, icon generators, evaluation and translation helpers
+scripts/             Debian, AppImage, Windows and macOS packaging, icon generators, evaluation and translation helpers
 packaging/linux/     desktop entry, AppStream metadata, icon and the Flatpak manifest
-.github/workflows/   GitHub Actions: build, test and package for Linux
+packaging/windows/   icon, manifest and resource file of renderHAMgui.exe, README.txt of the ZIP file
+packaging/macos/     icon, Info.plist of the application bundle, README.txt of the disk image
+.github/workflows/   GitHub Actions: build, test and package for Linux, Windows and macOS (build.yml)
 third_party/stb/     vendored single-file libraries
 cmake/               CMake helper for the self-registering components
 docs/                images for this README

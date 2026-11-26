@@ -8,6 +8,12 @@
 #include <wx/stdpaths.h>
 
 wxString GetTranslationsDir() {
+#ifdef __WXOSX__
+    // In an application bundle the catalogs are in Contents/Resources, not next to the program.
+    const wxString in_bundle =
+        wxStandardPaths::Get().GetResourcesDir() + wxFileName::GetPathSeparator() + "translations";
+    if (wxDir::Exists(in_bundle)) return in_bundle;
+#endif
     wxFileName exe_dir(wxStandardPaths::Get().GetExecutablePath());
     return exe_dir.GetPathWithSep() + "translations";
 }

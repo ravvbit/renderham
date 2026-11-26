@@ -91,3 +91,12 @@ add_executable(test_canvas_mapping test_canvas_mapping.cpp)
 aic_link_whole_archive(test_canvas_mapping renderhamlib)
 target_compile_features(test_canvas_mapping PRIVATE cxx_std_17)
 add_test(NAME canvas_mapping COMMAND test_canvas_mapping)
+
+# File names with non-ASCII characters (umlauts, accents, CJK) in every place that opens a file.
+add_executable(test_unicode_paths test_unicode_paths.cpp)
+aic_link_whole_archive(test_unicode_paths renderhamlib)
+target_compile_features(test_unicode_paths PRIVATE cxx_std_17)
+target_compile_definitions(test_unicode_paths PRIVATE
+    RENDERHAM_TESTDATA="${CMAKE_SOURCE_DIR}/testdata"
+    RENDERHAM_TMPDIR="${CMAKE_CURRENT_BINARY_DIR}")
+add_test(NAME unicode_paths COMMAND test_unicode_paths)

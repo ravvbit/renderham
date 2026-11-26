@@ -16,10 +16,51 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 #include "aic/aic.hpp"
 
 namespace {
+
+#ifdef _WIN32
+// On Windows, main() gets the command line in the ANSI code page, which cannot hold every file
+// name. This re-reads it as UTF-16 and gives the program UTF-8 instead, which is what the library
+// takes for paths (and sets the console to UTF-8 so such names print correctly).
+class Utf8Arguments {
+public:
+    Utf8Arguments(int& argc, char**& argv) {
+        SetConsoleOutputCP(CP_UTF8);
+        int n = 0;
+        wchar_t** wide = CommandLineToArgvW(GetCommandLineW(), &n);
+        if (!wide) return;
+        for (int i = 0; i < n; ++i) {
+            const int len = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
+            std::string s(len > 1 ? static_cast<size_t>(len - 1) : 0, '\0');
+            if (len > 1) WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, &s[0], len, nullptr, nullptr);
+            strings_.push_back(std::move(s));
+        }
+        LocalFree(wide);
+        for (std::string& s : strings_) pointers_.push_back(&s[0]);
+        pointers_.push_back(nullptr);
+        argc = n;
+        argv = pointers_.data();
+    }
+
+private:
+    std::vector<std::string> strings_;
+    std::vector<char*> pointers_;
+};
+#endif
 
 void print_usage(const char* prog) {
     std::cout <<
@@ -172,6 +213,9 @@ aic::RGBf parse_color(const char* flag, const char* text) {
 }  // namespace
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+    Utf8Arguments utf8_arguments(argc, argv);
+#endif
     std::string input_path, output_path, save_palette_path;
     aic::ConversionOptions opts;
     opts.quality_metrics = true;  // the CLI reports the perceptual figures, too (~50 ms at 320x256)
