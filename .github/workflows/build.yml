@@ -240,6 +240,7 @@ jobs:
 
       - name: AppImage
         run: |
+          chmod +x pkg/renderHAM-*-x86_64.AppImage   # artifacts lose the executable bit
           docker run --rm -v "$PWD/pkg:/pkg:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 "${{ matrix.image }}" bash -euxc '
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
