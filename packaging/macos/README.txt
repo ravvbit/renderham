@@ -19,6 +19,16 @@ check it for malicious software and refuses to open it by double-click. To open 
   2. Open System Settings > Privacy & Security, scroll down to the message about renderHAM
      and click "Open Anyway". Confirm with your password.
 (On macOS 14 and older: Control-click the app, choose "Open", then "Open" again.)
+
+If macOS still does not open the app, remove the mark that macOS puts on every file that is
+downloaded from the internet (the "quarantine" mark). After renderHAM.app is in the Applications
+folder, type this in the Terminal (it asks for your password):
+    sudo xattr -r -d com.apple.quarantine /Applications/renderHAM.app
+The command changes nothing in the program; it only removes the mark, and macOS stops checking
+this one app. Use it only for a copy from the release page of the project
+(https://github.com/ravvbit/renderham/releases): its file SHA256SUMS has the checksum of this
+disk image.
+
 The command-line tool is blocked the same way when it is downloaded; remove the mark with
     xattr -d com.apple.quarantine renderHAM
 

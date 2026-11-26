@@ -547,6 +547,17 @@ Neither program is signed. Windows may warn about an unknown publisher (SmartScr
 then "Run anyway"), and macOS refuses to open the app by double-click the first time (System Settings
 > Privacy & Security > "Open Anyway"). A `README.txt` with these steps is in both packages.
 
+If macOS still does not open the app, remove the "quarantine" mark that macOS puts on downloaded
+files (a tester with an Apple Silicon Mac needed this). In the Terminal, with the app in *Applications*:
+
+```sh
+sudo xattr -r -d com.apple.quarantine /Applications/renderHAM.app
+```
+
+The command asks for your password. It only removes that mark and changes nothing in the program, and
+macOS stops checking this one app, so use it only for a download from the release page of this
+project, whose file `SHA256SUMS` has the checksum of the disk image.
+
 #### What the automated checks cover
 
 On every push and pull request the workflow builds the library, the command-line tool and the GUI and
@@ -559,8 +570,9 @@ program runs), and on Windows the GUI also converts the picture (`F5`) before th
 
 What that does **not** cover: the macOS program is one universal build, but the macOS test machine
 is an Intel Mac, so the Apple Silicon half of it is compiled and linked but never run (GitHub
-did not hand out an Apple Silicon runner when this was set up). Nobody but the CI has used these
-packages yet, so expect rough edges; bug reports are welcome.
+did not hand out an Apple Silicon runner when this was set up). Apart from one tester, who started the
+disk image on a Mac with Apple Silicon, nobody but the CI has used these packages yet, so expect
+rough edges; bug reports are welcome.
 
 What the code does for those systems: file names with non-ASCII characters work (the library takes
 UTF-8 paths and hands Windows what it expects; the command-line tool reads its arguments as UTF-16
