@@ -29,7 +29,8 @@ All notable changes to this project are documented here. The format follows
   tool, the DLLs they need and the German translation) and `renderHAM-<version>-macos-universal.dmg`
   (`renderHAM.app` for Intel Macs and Apple Silicon, macOS 11 or newer, plus the command-line tool).
   Built by `scripts/package_windows.sh` and `scripts/package_macos.sh`; neither is signed, and a
-  `README.txt` inside explains the SmartScreen and Gatekeeper warnings.
+  `README.txt` inside explains the SmartScreen and Gatekeeper warnings and, for macOS, the Terminal
+  command that removes the quarantine mark when "Open Anyway" is not enough (the README says so, too).
 - **Windows and macOS builds in CI**: one workflow, `.github/workflows/build.yml`, now builds, tests and
   packages for Linux, Windows (MinGW-w64, MSYS2 UCRT64) and macOS (a universal build for Intel and
   Apple Silicon; wxWidgets 3.2.12 built from source and cached). It unpacks the finished ZIP and disk

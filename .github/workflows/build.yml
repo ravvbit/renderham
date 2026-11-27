@@ -765,7 +765,7 @@ jobs:
             echo
             echo "**macOS (Intel and Apple Silicon)**"
             echo
-            echo "- \`renderHAM-${version}-macos-universal.dmg\`: \`renderHAM.app\` (drag it to Applications) and the command-line tool; macOS 11 or newer. Not signed with a developer certificate: macOS asks for confirmation the first time (see README.txt in the image). The Apple Silicon part has been built but not run by the automated tests."
+            echo "- \`renderHAM-${version}-macos-universal.dmg\`: \`renderHAM.app\` (drag it to Applications) and the command-line tool; macOS 11 or newer. Not signed with a developer certificate: macOS asks for confirmation the first time; if \"Open Anyway\" is not enough, README.txt in the image has the Terminal command that removes the quarantine mark. The Apple Silicon part has been built but not run by the automated tests; one tester has started it on a Mac with Apple Silicon."
             echo
             echo "**x86_64 Linux**"
             echo
