@@ -227,7 +227,10 @@ if [ -z "$destdir" ]; then
         *":$prefix/bin:"*) ;;
         *)
             echo ""
+            # The tilde is meant literally: the name is only shown in the hint below.
+            # shellcheck disable=SC2088
             profile="~/.profile"
+            # shellcheck disable=SC2088
             [ "$macos" = no ] || profile="~/.zprofile"
             echo "Note: $prefix/bin is not in your PATH. Add it, e.g. with this line in $profile:"
             echo "      export PATH=\"$prefix/bin:\$PATH\""

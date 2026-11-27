@@ -20,6 +20,13 @@ All notable changes to this project are documented here. The format follows
   `/usr/local`, with `--user` into `~/.local`, with `--prefix` and `--destdir`) and
   `scripts/uninstall.sh` (removes exactly what `install.sh` recorded). The README has installation
   instructions for every variant (Debian package, AppImage, Flatpak, from source, Windows, macOS).
+- **The same scripts on macOS, with Homebrew**, for a build of your own (the disk image stays the one
+  to pass on): `install_dependencies.sh` installs CMake, gettext and wxWidgets with `brew`,
+  `build.sh` recognizes the application `renderHAM.app` as the GUI (before, it built it and then
+  warned that wxWidgets was not found), `install.sh` puts the application into `/Applications` (with
+  `--user` into `~/Applications`, with `--prefix` or `--destdir` it stays below the prefix) and
+  `uninstall.sh` removes it again; the scripts need no newer bash than the 3.2 that macOS has.
+  Contributed by [@whaslbeck](https://github.com/whaslbeck) in #16.
 - **Source tarball** `renderham-<version>.tar.gz`, made by `scripts/make_source_tarball.sh` (the same
   revision always gives the same file; `.gitattributes` leaves the CI configuration out) and attached
   to the release by the workflow. The workflow builds, installs and uninstalls from it with the
